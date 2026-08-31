@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>臓器アドベンチャー</title>
+<style>
+body{margin:0;background:#12131a;color:#e8eaf2;font-family:"Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
+.box{max-width:420px;width:100%;text-align:center}
+h1{font-size:22px;margin:0 0 4px}
+p{color:#9aa0b8;font-size:12px;margin:0 0 22px}
+a{display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;background:#242737;
+  border:1px solid #343850;border-radius:14px;padding:16px;margin-top:12px;text-align:left}
+a.main{border-color:#3fc4a0;background:#12312a}
+a .ico{font-size:30px}
+a b{display:block;font-size:15px}
+a span{font-size:11px;color:#9aa0b8}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>🫀 臓器アドベンチャー</h1>
+  <p>中2理科「動物の体のつくりとはたらき」がゲームになった</p>
+  <a class="main" href="./zouki-sp.html"><span class="ico">📱</span><div><b>スマホ版で遊ぶ</b><span>3〜7分のスコアアタック。かんたん・ふつう・むずかしい</span></div></a>
+  <a href="./zouki-pc.html"><span class="ico">💻</span><div><b>PC版（授業用）</b><span>じっくり30〜50分。パソコン・タブレット横向きで</span></div></a>
+</div>
+<script>
+/* スマホで開いたら自動でスマホ版へ */
+if(Math.min(screen.width,screen.height)<600 && !location.hash){ location.replace('./zouki-sp.html'); }
+</script>
+</body>
+</html>

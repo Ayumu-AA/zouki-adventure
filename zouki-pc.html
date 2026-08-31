@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>臓器アドベンチャー ― カラダ経営デッキ</title>
+<style>
+:root{
+  --bg:#12131a; --panel:#1c1e29; --panel2:#242737; --line:#343850;
+  --tx:#e8eaf2; --tx2:#9aa0b8;
+  --gut:#e2a03f; --blood:#e0556a; --waste:#7d63c9; --energy:#3fc4a0; --vp:#f2d13c;
+  --ok:#4ade80; --ng:#f87171;
+}
+*{box-sizing:border-box; margin:0; padding:0}
+body{
+  background:var(--bg); color:var(--tx);
+  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;
+  font-size:14px; line-height:1.6; -webkit-text-size-adjust:100%; overflow-x:hidden;
+}
+button{font-family:inherit; cursor:pointer; border:none; color:inherit; background:none}
+#app{max-width:1440px; margin:0 auto; padding:12px}
+
+/* ===== ヘッダー ===== */
+header{
+  display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+  background:linear-gradient(90deg,#2a1f3d,#1c1e29);
+  border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin-bottom:12px;
+}
+header h1{font-size:16px; letter-spacing:.04em; white-space:nowrap}
+header h1 small{display:block; font-size:10px; color:var(--tx2); font-weight:400; letter-spacing:0}
+.stats{display:flex; flex-wrap:wrap; gap:8px; margin-left:auto}
+.stat{background:#00000040; border:1px solid var(--line); border-radius:8px; padding:4px 10px; text-align:center; min-width:76px; position:relative}
+.stat b{display:block; font-size:17px; line-height:1.2}
+.stat span{font-size:10px; color:var(--tx2)}
+.hpbar{height:5px; background:#00000060; border-radius:3px; overflow:hidden; margin-top:3px}
+.hpbar i{display:block; height:100%; background:var(--ng); transition:width .3s}
+.btn{background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:7px 12px; font-size:12px; font-weight:700}
+.btn:hover{background:#31364b}
+.btn.primary{background:linear-gradient(135deg,#3fc4a0,#2b9b7d); color:#06231c; border-color:#3fc4a0}
+.btn.primary:hover{filter:brightness(1.12)}
+.btn.gold{background:linear-gradient(135deg,#f2d13c,#d9a92c); color:#332600; border-color:#f2d13c}
+.btn.gold:hover{filter:brightness(1.1)}
+.btn:disabled{opacity:.4; cursor:default}
+
+/* ===== レイアウト ===== */
+.grid{display:grid; grid-template-columns:330px 1fr 278px; gap:12px; align-items:start}
+@media(max-width:1120px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px}
+.panel h2{font-size:12px; letter-spacing:.08em; color:var(--tx2); margin-bottom:8px; display:flex; align-items:center; gap:6px}
+.panel h2 .tag{font-size:9px; background:var(--panel2); padding:1px 6px; border-radius:99px; color:var(--tx2)}
+
+/* ===== 体の図 ===== */
+#bodywrap{position:relative; width:100%; aspect-ratio:300/500; user-select:none}
+#bodysvg{position:absolute; inset:0; width:100%; height:100%}
+#bodysvg .sil{fill:#ffffff07; stroke:#ffffff1c; stroke-width:1.5}
+#bodysvg .vessel{fill:none; stroke:#e0556a3d; stroke-width:5; stroke-linecap:round; stroke-dasharray:5 9}
+#bodywrap.flowing .vessel{animation:vflow .8s linear infinite}
+@keyframes vflow{to{stroke-dashoffset:-14}}
+.flowchip{position:absolute; top:2px; left:2px; z-index:4; background:#2b1a20ee; border:1px solid #e0556a66;
+  border-radius:99px; padding:3px 11px; font-size:11.5px; color:#ffb8c4}
+.flowchip b{font-size:15px; color:#fff}
+.bloodlab{position:absolute; left:10%; top:15%; transform:translateX(-50%); font-size:9px; color:var(--tx2); letter-spacing:.06em; z-index:2}
+.onode{position:absolute; transform:translate(-50%,-50%); width:58px; padding:3px 2px 2px;
+  background:#242737f0; border:1px solid var(--line); border-radius:10px; text-align:center;
+  transition:transform .14s,border-color .14s,box-shadow .14s; z-index:3}
+.onode .oico{font-size:18px; display:block; line-height:1.15; pointer-events:none}
+.onode .olab{font-size:8.5px; color:var(--tx2); display:block; white-space:nowrap; pointer-events:none}
+.onode .ocnt{position:absolute; top:-7px; right:-7px; background:var(--energy); color:#06231c;
+  font-size:9px; font-weight:700; border-radius:99px; padding:0 5px; pointer-events:none}
+.onode:hover{border-color:#6d7595; transform:translate(-50%,-50%) scale(1.1); z-index:5; box-shadow:0 4px 14px #0009}
+.onode.spent{opacity:.35; filter:grayscale(.85)}
+.onode.ghost{opacity:.3; border-style:dashed; background:#1c1e29cc}
+.onode.ghost:hover{opacity:.7}
+.onode.pulse{animation:opulse .55s}
+@keyframes opulse{35%{transform:translate(-50%,-50%) scale(1.3); box-shadow:0 0 20px #3fc4a099; border-color:var(--energy)}}
+.bodyfoot{font-size:10px; color:var(--tx2); margin-top:6px; padding:6px 9px; background:#00000030; border-radius:7px}
+
+/* ===== 進行ガイド ===== */
+.steps{display:flex; gap:10px; align-items:stretch}
+.step{flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:9px;
+  padding:6px 4px; text-align:center; position:relative; transition:.2s}
+.step:hover{border-color:#6d7595}
+.step .sic{font-size:16px; display:block; line-height:1.2}
+.step .snm{font-size:9.5px; color:var(--tx2); display:block; white-space:nowrap}
+.step .sval{font-size:13px; font-weight:700; display:block}
+.step.active{border-color:var(--vp); box-shadow:inset 0 0 0 1px var(--vp), 0 0 14px #f2d13c2e; background:#2b2818}
+.step.active .snm{color:var(--vp)}
+.step .arr{position:absolute; right:-10px; top:50%; transform:translateY(-50%); color:#555c7a; z-index:2; font-size:11px}
+
+/* ===== リソース ===== */
+.reszones{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
+@media(max-width:700px){.reszones{grid-template-columns:1fr}}
+.zone{border-left:3px solid var(--line); padding-left:9px}
+.zone.gut{border-color:var(--gut)}
+.zone.blood{border-color:var(--blood)}
+.zone.waste{border-color:var(--waste)}
+.zone h3{font-size:11px; color:var(--tx2); margin-bottom:4px}
+.zone h3 em{font-style:normal; color:#6d7390; font-size:9.5px; display:block}
+.res{display:flex; justify-content:space-between; align-items:center; padding:1px 0; font-size:11.5px}
+.res.zero{opacity:.3}
+.res b{font-variant-numeric:tabular-nums; font-size:13px}
+.res b.warn{color:var(--ng)}
+.zone .note{font-size:9.5px; color:#6d7390; margin-top:4px}
+.delta{font-size:10px; font-weight:700; margin-left:5px; display:inline-block; animation:drise 1.2s forwards}
+.delta.up{color:var(--ok)} .delta.dn{color:var(--ng)}
+@keyframes drise{0%{opacity:0; transform:translateY(5px)}18%{opacity:1}75%{opacity:1}100%{opacity:0; transform:translateY(-9px)}}
+
+/* ===== カード ===== */
+.hand{display:flex; flex-wrap:wrap; gap:9px; min-height:118px}
+.card{
+  width:146px; background:linear-gradient(160deg,var(--panel2),#1b1e2b);
+  border:1px solid var(--line); border-radius:10px; padding:9px; position:relative;
+  transition:transform .12s, box-shadow .12s, border-color .12s; text-align:left;
+}
+.card:hover{transform:translateY(-3px); border-color:#5a6285; box-shadow:0 6px 18px #0008}
+.card .ico{font-size:20px; line-height:1}
+.card .nm{font-weight:700; font-size:13px; margin:3px 0 1px}
+.card .cat{font-size:9px; color:var(--tx2); letter-spacing:.06em}
+.card .tx{font-size:10.5px; color:#c3c8de; margin-top:5px; line-height:1.45}
+.card .cost{position:absolute; top:7px; right:8px; background:var(--energy); color:#06231c;
+  font-size:11px; font-weight:700; border-radius:99px; padding:1px 7px}
+.card .flow{position:absolute; top:7px; right:8px; font-size:10px; color:var(--blood); font-weight:700}
+.card .info{position:absolute; top:6px; right:7px; width:17px; height:17px; line-height:17px;
+  text-align:center; border-radius:50%; background:#ffffff14; color:var(--tx2); font-size:11px; font-weight:700}
+.card .info:hover{background:var(--energy); color:#06231c}
+.card.life{background:linear-gradient(160deg,#2b2436,#1e1a27); border-color:#4a3d5c}
+.card.life .info{top:6px; right:7px}
+.card.buy{width:100%; margin-bottom:7px}
+.card.buy:hover{transform:none}
+.card.buy .info{top:28px}
+.card.cant{opacity:.4}
+.shophead{font-size:10px; letter-spacing:.08em; color:var(--tx2); margin:10px 0 6px; padding-bottom:3px; border-bottom:1px solid var(--line)}
+.shophead:first-child{margin-top:0}
+.shoplist{max-height:78vh; overflow-y:auto; padding-right:4px}
+.shoplist::-webkit-scrollbar{width:6px}
+.shoplist::-webkit-scrollbar-thumb{background:#3a3f58; border-radius:3px}
+
+/* ===== ログ ===== */
+#log{height:110px; overflow-y:auto; font-size:11.5px; line-height:1.7}
+#log::-webkit-scrollbar{width:6px}
+#log::-webkit-scrollbar-thumb{background:#3a3f58; border-radius:3px}
+#log div{padding:2px 0; border-bottom:1px dashed #ffffff0d}
+#log .g{color:var(--ok)} #log .r{color:var(--ng)} #log .y{color:var(--vp)} #log .m{color:var(--tx2)}
+
+/* ===== エフェクト ===== */
+.particle{position:fixed; z-index:130; pointer-events:none; font-size:17px;
+  transition:transform .8s cubic-bezier(.2,.7,.3,1), opacity .8s; will-change:transform}
+.toast{position:fixed; z-index:130; pointer-events:none; background:#3b1d24; border:1px solid #f8717166;
+  color:#ffd7d7; font-size:11px; padding:4px 10px; border-radius:8px; transform:translate(-50%,-120%);
+  white-space:nowrap; animation:tfade 1.7s forwards}
+@keyframes tfade{0%{opacity:0; margin-top:4px}12%{opacity:1; margin-top:0}78%{opacity:1}100%{opacity:0; margin-top:-14px}}
+.shake{animation:shake .3s 2}
+@keyframes shake{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+.statflash{animation:sflash .6s}
+@keyframes sflash{35%{background:#3fc4a044; border-color:var(--energy)}}
+
+/* ===== チュートリアル ===== */
+.tut-bubble{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:150;
+  background:linear-gradient(160deg,#1c3a31,#132921); border:1px solid var(--energy); border-radius:13px;
+  padding:13px 16px; width:min(560px, 92vw); box-shadow:0 12px 34px #000d; font-size:13px; line-height:1.7}
+.tut-bubble .tstep{font-size:10px; color:var(--energy); letter-spacing:.08em; margin-bottom:3px}
+.tut-bubble .tacts{display:flex; gap:8px; margin-top:9px; justify-content:flex-end}
+.tut-hi{outline:3px solid var(--vp) !important; outline-offset:3px; animation:hiblink 1s infinite; z-index:120}
+@keyframes hiblink{50%{outline-color:#f2d13c33}}
+
+/* ===== モーダル ===== */
+.mask{position:fixed; inset:0; background:#000000cc; display:none; align-items:center; justify-content:center; padding:16px; z-index:200; backdrop-filter:blur(3px)}
+.mask.on{display:flex}
+.modal{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px;
+  max-width:720px; width:100%; max-height:88vh; overflow-y:auto}
+.modal h2{font-size:18px; margin-bottom:10px}
+.modal h3{font-size:13px; margin:16px 0 6px; color:var(--energy)}
+.modal p,.modal li{font-size:13px; color:#ccd1e6; margin-bottom:5px}
+.modal ul{padding-left:18px}
+.chain{background:#00000040; border:1px solid var(--line); border-radius:8px; padding:9px 11px; margin:6px 0; font-size:12px}
+.chain b{color:var(--gut)}
+.sci{background:#1a2b26; border-left:3px solid var(--energy); padding:8px 11px; border-radius:0 6px 6px 0; font-size:12px; margin:8px 0}
+.close{float:right; background:var(--panel2); border-radius:8px; padding:5px 11px; font-size:12px}
+.deckbar{display:flex; gap:12px; font-size:11px; color:var(--tx2); margin-top:8px; flex-wrap:wrap}
+.deckbar b{color:var(--tx)}
+.hint{font-size:12px; margin-top:8px; padding:8px 11px; background:#26231433; border:1px solid #f2d13c33; border-radius:8px}
+.acts{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>臓器アドベンチャー<small>カラダ経営デッキ ／ 中2理科・動物の体のつくりとはたらき</small></h1>
+    <div class="stats" id="stats"></div>
+  </header>
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h2>からだ <span class="tag">臓器をクリックで使う ／ ? か右クリックで解説</span></h2>
+        <div id="bodywrap">
+          <svg id="bodysvg" viewBox="0 0 300 500" preserveAspectRatio="xMidYMid meet">
+            <circle class="sil" cx="150" cy="42" r="30"/>
+            <path class="sil" d="M150 72 C 192 78 206 96 208 130 L208 252 C208 292 190 306 150 309 C110 306 92 292 92 252 L92 130 C94 96 108 78 150 72 Z"/>
+            <rect class="sil" x="56" y="104" width="26" height="152" rx="13"/>
+            <rect class="sil" x="218" y="104" width="26" height="152" rx="13"/>
+            <rect class="sil" x="103" y="300" width="36" height="176" rx="18"/>
+            <rect class="sil" x="161" y="300" width="36" height="176" rx="18"/>
+            <path class="vessel" d="M132 128 C 150 150 152 190 150 230 C 148 268 150 300 150 330"/>
+            <path class="vessel" d="M132 122 C 150 118 175 112 190 116"/>
+          </svg>
+          <div class="flowchip">🩸 血流 <b id="flowbig">0</b><span id="flowdelta"></span></div>
+          <div class="bloodlab">血液の成分</div>
+          <div id="nodes"></div>
+        </div>
+        <div class="bodyfoot">薄い点線の臓器はまだ持っていない（クリックで説明）。エネルギーで手に入れると体に加わり、<b>毎ターン1回ずつ</b>使える。</div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h2>ゲームの流れ <span class="tag">光っているところが今やること／クリックで説明</span></h2>
+        <div class="steps" id="flowbar"></div>
+      </div>
+      <div class="panel">
+        <h2>体のなかの物質</h2>
+        <div class="reszones" id="res"></div>
+      </div>
+      <div class="panel">
+        <h2>手札（生活カード） <span class="tag" id="handtag"></span></h2>
+        <div class="hand" id="hand"></div>
+        <div class="acts">
+          <button class="btn gold" id="grow">🌱 成長する（エネルギー3 → 成長ポイント1）</button>
+          <button class="btn primary" id="endturn">ターン終了 ▶</button>
+          <button class="btn" id="helpbtn">ルールと体のしくみ</button>
+          <button class="btn" id="restart">はじめから</button>
+        </div>
+        <div class="deckbar" id="deckbar"></div>
+        <div class="hint" id="hint"></div>
+      </div>
+      <div class="panel">
+        <h2>記録</h2>
+        <div id="log"></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h2>手に入れる <span class="tag" id="buytag"></span></h2>
+        <div class="shoplist" id="shop"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mask" id="mask"><div class="modal" id="modal"></div></div>
+<script>
+/* ============================================================
+   臓器アドベンチャー ― カラダ経営デッキ
+   中2理科 第二分野「動物の体のつくりとはたらき」
+   ------------------------------------------------------------
+   ・臓器カード … 手に入れると「体（場）」に残り、毎ターン1回使える
+   ・生活カード … 山札→手札で引く。毎ターン2枚までプレイできる
+   ============================================================ */
+
+const CFG = { maxTurn:18, goalVP:16, startHP:20, startGlucose:6, handSize:4, playLimit:2, buysPerTurn:2, vpCost:3,
+  eventFrom:5, eventRate:0.4,
+  /* ↓「むずかしい」でだけ有効になるルール */
+  hard:false, o2base:3, o2perRBC:3 };
+
+/* 【むずかしい】1ターンに全身へ届けられる酸素の量。ヘモグロビン＝赤血球の数で決まる */
+function o2limit(G){ return CFG.o2base + G.board.filter(o=>o.id==='sekkekkyu').length*CFG.o2perRBC; }
+function o2check(G,need){
+  if(!CFG.hard) return null;
+  const lim=o2limit(G);
+  if(G.o2used+need>lim) return F(`赤血球が全身へ運べる酸素をこえている（このターン ${G.o2used}/${lim}）。赤血球をふやそう`);
+  return null;
+}
+
+/* 消化管の中の物質。栄養素ごとに分解の順番で並べてある */
+const GUTNAMES = {
+  starch:'でんぷん', maltose:'ばくが糖', glucose:'ブドウ糖',
+  protein:'タンパク質', peptone:'ペプトン', peptide:'ペプチド', amino:'アミノ酸',
+  fat:'脂肪', emul:'乳化した脂肪', fatty:'脂肪酸＋モノグリセリド'
+};
+const BLOODNAMES = { glucose:'ブドウ糖', amino:'アミノ酸', fat:'脂肪', oxygen:'酸素' };
+const WASTENAMES = { co2:'二酸化炭素', ammonia:'アンモニア', urea:'尿素' };
+
+/* 処理枠を複数の物質に均等配分する（1種類が枠を独占しないように） */
+function spread(pool, keys, cap){
+  const amt={}; keys.forEach(k=>amt[k]=0);
+  let left=cap, moved=true;
+  while(left>0 && moved){
+    moved=false;
+    for(const k of keys){
+      if(left<=0) break;
+      if(pool[k]-amt[k] > 0){ amt[k]++; left--; moved=true; }
+    }
+  }
+  return amt;
+}
+
+const T = m => ({ok:true, msg:m});
+const F = m => ({ok:false, msg:m});
+
+/* ============================================================
+   カードデータベース
+   kind:'organ' … 体に残る／kind:'life' … 山札に入る生活カード
+   ============================================================ */
+const DB = {
+
+/* ---------- 循環 ---------- */
+shinzou:{kind:'organ', name:'心臓', ico:'❤️', cat:'循環', cost:5,
+  text:'血流+3',
+  sci:'ヒトの心臓は2心房2心室。全身→右心房→右心室→肺（肺循環）、肺→左心房→左心室→全身（体循環）。血液がすべての臓器をつないでいるので、心臓が動かないとどの臓器も働けない。',
+  act(G){ G.flow+=3; return T('拍動：血流+3'); }},
+kesshou:{kind:'organ', name:'血しょう', ico:'🟡', cat:'循環', cost:4,
+  text:'血流+2、二酸化炭素-1',
+  sci:'血液の液体成分。養分・二酸化炭素・不要物をとかして運ぶ。一部は毛細血管からしみ出して組織液となり、細胞とのやりとりを仲立ちする。',
+  act(G){ G.flow+=2; const d=Math.min(1,G.waste.co2); G.waste.co2-=d; return T('血しょうが物質を運んだ：血流+2'); }},
+sekkekkyu:{kind:'organ', name:'赤血球（ヘモグロビン）', ico:'🔴', cat:'循環', cost:4,
+  text:'酸素+3／【むずかしい】1ターンに全身へ運べる酸素+3',
+  sci:'赤血球にふくまれるヘモグロビンは、酸素の多いところで酸素と結びつき、酸素の少ないところで酸素をはなす。この性質のおかげで全身に酸素を届けられる。逆にいえば、肺でどれだけ酸素をとりこんでも、赤血球が少なければ全身へ運べる量には限りがある（赤血球やヘモグロビンが不足した状態を貧血という）。',
+  act(G){ G.blood.oxygen+=3; return T('ヘモグロビンが酸素を運んだ：酸素+3'); }},
+hakkekkyu:{kind:'organ', name:'白血球', ico:'⚪', cat:'循環', cost:4,
+  text:'体にあるだけで「かぜ」を無効化（使うと体力+1）',
+  sci:'体内に入った細菌などの病原体をとらえて分解する（食作用）。',
+  act(G){ if(G.hp>=CFG.startHP) return F('体力は満タン'); G.hp++; return T('白血球が病原体をとらえた：体力+1'); }},
+kesshouban:{kind:'organ', name:'血小板', ico:'🩹', cat:'循環', cost:4,
+  text:'体にあるだけで「けが」を無効化（使うと体力+1）',
+  sci:'出血したときに血液を固めて出血を止める（止血）。',
+  act(G){ if(G.hp>=CFG.startHP) return F('体力は満タン'); G.hp++; return T('血小板が止血した：体力+1'); }},
+
+/* ---------- 呼吸 ---------- */
+hai:{kind:'organ', name:'肺（肺胞）', ico:'🫁', cat:'呼吸', cost:5, flow:1,
+  text:'血流1｜酸素+4、二酸化炭素-3',
+  sci:'肺の中は肺胞という小さな袋に分かれていて、表面積が大きい。肺胞をとりまく毛細血管との間で、酸素をとり入れ二酸化炭素を出す（ガス交換）。',
+  act(G){ if(G.flow<1) return F('血流が足りない（心臓を先に使おう）');
+    G.flow-=1; G.blood.oxygen+=4; const d=Math.min(3,G.waste.co2); G.waste.co2-=d;
+    return T(`肺胞でガス交換：酸素+4${d?`／二酸化炭素-${d}`:''}`); }},
+oukakumaku:{kind:'organ', name:'横隔膜とろっ骨', ico:'🎐', cat:'呼吸', cost:3,
+  text:'酸素+2、二酸化炭素-2',
+  sci:'肺には筋肉がなく、自分ではふくらむことができない。横隔膜が下がりろっ骨が上がると胸の空間が広がって空気が吸いこまれ、逆の動きで息をはく。',
+  act(G){ G.blood.oxygen+=2; const d=Math.min(2,G.waste.co2); G.waste.co2-=d; return T('呼吸運動：酸素+2'); }},
+
+/* ---------- 消化 ---------- */
+daeki:{kind:'organ', name:'だ液せん（口）', ico:'💧', cat:'消化', cost:3,
+  text:'アミラーゼ｜でんぷん を最大3つ ばくが糖 に変える',
+  sci:'だ液にふくまれる消化酵素アミラーゼが、でんぷんを麦芽糖（ばくが糖）に分解する。アミラーゼの仕事はここまでで、ブドウ糖にするのはこの先の小腸の役目。ヨウ素液（でんぷんの検出）とベネジクト液（糖の検出）の実験でたしかめられる。',
+  act(G){ const n=Math.min(3,G.gut.starch); if(!n) return F('消化管にでんぷんがない');
+    G.gut.starch-=n; G.gut.maltose+=n; return T(`アミラーゼ：でんぷん${n} → ばくが糖${n}`); }},
+i:{kind:'organ', name:'胃', ico:'🫙', cat:'消化', cost:3,
+  text:'ペプシン｜タンパク質 を最大3つ ペプトン に変える',
+  sci:'胃液にふくまれる消化酵素ペプシンがタンパク質を分解する。胃液は塩酸をふくみ強い酸性で、ペプシンはその酸性のなかでよく働く。ペプシンはタンパク質を途中まで分解するだけで、アミノ酸にはしない。',
+  act(G){ const n=Math.min(3,G.gut.protein); if(!n) return F('消化管にタンパク質がない');
+    G.gut.protein-=n; G.gut.peptone+=n; return T(`ペプシン：タンパク質${n} → ペプトン${n}`); }},
+tannou:{kind:'organ', name:'たんのう（胆汁）', ico:'🟢', cat:'消化', cost:3,
+  text:'胆汁｜脂肪 を最大3つ 乳化した脂肪 に変える',
+  sci:'胆汁は肝臓でつくられ、たんのうにたくわえられてから小腸に出される。消化酵素はふくまないが、脂肪を細かい粒にして（乳化）、すい液のリパーゼが働きやすくする。',
+  act(G){ const n=Math.min(3,G.gut.fat); if(!n) return F('消化管に脂肪がない');
+    G.gut.fat-=n; G.gut.emul+=n; return T(`胆汁が脂肪${n}を乳化した（※消化酵素ではない）`); }},
+suizou:{kind:'organ', name:'すい臓（すい液）', ico:'🥖', cat:'消化', cost:5,
+  text:'アミラーゼ／トリプシン／リパーゼ｜でんぷん→ばくが糖・ペプトン→ペプチド・乳化した脂肪→脂肪酸 を合計4つまで（均等に分解）',
+  sci:'すい液は三大栄養素すべてに働く万能の消化液。アミラーゼ（でんぷん→ばくが糖）、トリプシン（タンパク質をさらに分解）、リパーゼ（脂肪→脂肪酸＋モノグリセリド）をふくむ。アミラーゼはだ液のものと同じはたらきで、でんぷんに作用する。トリプシンもアミノ酸まではしない。脂肪だけはリパーゼで最後まで分解される。',
+  act(G){
+    const list=[['starch','maltose','アミラーゼ→ばくが糖'],['peptone','peptide','トリプシン→ペプチド'],['emul','fatty','リパーゼ→脂肪酸']];
+    const amt=spread(G.gut, ['starch','peptone','emul'], 4);
+    const done=[];
+    for(const [from,to,label] of list){ const n=amt[from]; if(n){ G.gut[from]-=n; G.gut[to]+=n; done.push(label+n); } }
+    if(!done.length) return F('すい液が働ける物質がない（でんぷん・ペプトン・乳化した脂肪のどれかが必要）');
+    return T('すい液：'+done.join('／')); }},
+shouchou:{kind:'organ', name:'小腸（柔毛）', ico:'🧻', cat:'吸収', cost:5, flow:1,
+  text:'血流1｜腸液（マルターゼ・ペプチダーゼ）で最終消化3つ ＋ 柔毛で吸収3つ（均等）',
+  sci:'小腸の壁からは腸液が出ていて、ここではじめて最終的な形になる。マルターゼが麦芽糖（ばくが糖）をブドウ糖に、ペプチダーゼがペプチドをアミノ酸にする。壁には柔毛という無数の突起があり表面積が非常に大きい。ブドウ糖とアミノ酸は柔毛の毛細血管へ、脂肪酸とモノグリセリドは柔毛で脂肪にもどってリンパ管へ入る。※消化管の中はまだ「体の外」。吸収されてはじめて「体の中」に入る。',
+  act(G){ if(G.flow<1) return F('血流が足りない（心臓を先に使おう）');
+    const dl=[['maltose','glucose','マルターゼ：ばくが糖→ブドウ糖'],['peptide','amino','ペプチダーゼ：ペプチド→アミノ酸']];
+    const da=spread(G.gut, ['maltose','peptide'], 3);
+    const dig=[];
+    for(const [from,to,label] of dl){ const n=da[from]; if(n){ G.gut[from]-=n; G.gut[to]+=n; dig.push(label+n); } }
+    const aa=spread(G.gut, ['glucose','amino','fatty'], 3);
+    const abs=[];
+    if(aa.glucose){ G.gut.glucose-=aa.glucose; G.blood.glucose+=aa.glucose; if(G.abs)G.abs.g+=aa.glucose; abs.push(`ブドウ糖${aa.glucose}→毛細血管`); }
+    if(aa.amino){   G.gut.amino-=aa.amino;     G.blood.amino+=aa.amino;     if(G.abs)G.abs.a+=aa.amino;   abs.push(`アミノ酸${aa.amino}→毛細血管`); }
+    if(aa.fatty){   G.gut.fatty-=aa.fatty;     G.blood.fat+=aa.fatty;       if(G.abs)G.abs.f+=aa.fatty;   abs.push(`脂肪酸${aa.fatty}→脂肪にもどりリンパ管`); }
+    if(!dig.length && !abs.length) return F('分解も吸収もできる物がない（まず食べて、だ液せんや胃で分解しよう）');
+    G.flow-=1;
+    return T([dig.length?'腸液 '+dig.join('／'):null, abs.length?'柔毛が吸収：'+abs.join('／'):null].filter(Boolean).join(' ／ ')); }},
+daichou:{kind:'organ', name:'大腸', ico:'🌀', cat:'吸収', cost:3,
+  text:'消化しきれずに残った物を最大4つ取りのぞく（吸収できる状態の養分は残す）',
+  sci:'大腸ではおもに水分が吸収され、消化されずに残ったものが便になる。吸収できる形まで分解された養分は小腸で吸収されるので、大腸に届くのは消化しきれなかった物。',
+  act(G){ let n=4, r=0;
+    for(const k of ['starch','protein','fat','maltose','peptone','peptide','emul']){
+      const t=Math.min(n,G.gut[k]); if(t){ G.gut[k]-=t; n-=t; r+=t; } }
+    if(!r) return F('消化しきれずに残った物はない'); return T(`大腸が残りものを整理した（${r}個ぶん）`); }},
+
+/* ---------- 細胞による呼吸 ---------- */
+cellG:{kind:'organ', name:'細胞：糖をつかう', ico:'⚡', cat:'細胞呼吸', cost:4, flow:1,
+  text:'血流1｜ブドウ糖1＋酸素1 → エネルギー2、二酸化炭素+1',
+  sci:'細胞は運ばれてきた養分を酸素を使って分解し、生きるために必要なエネルギーをとり出す（細胞による呼吸）。このとき二酸化炭素と水ができる。',
+  act(G){ if(G.flow<1) return F('血流が足りない（心臓を先に使おう）');
+    if(G.blood.glucose<1) return F('血液中にブドウ糖がない（小腸で吸収しよう）');
+    if(G.blood.oxygen<1) return F('酸素が足りない（肺を使おう）');
+    const lim=o2check(G,1); if(lim) return lim;
+    G.flow--; G.blood.glucose--; G.blood.oxygen--; G.o2used++; G.energy+=2; G.waste.co2++; if(G.burned)G.burned.g++;
+    return T('細胞呼吸（糖）：エネルギー+2／二酸化炭素+1'); }},
+cellA:{kind:'organ', name:'細胞：タンパク質をつかう', ico:'💪', cat:'細胞呼吸', cost:5, flow:1,
+  text:'血流1｜アミノ酸1＋酸素1 → エネルギー3、二酸化炭素+1、アンモニア+1',
+  sci:'アミノ酸はおもに体をつくる材料になるが、分解してエネルギーをとり出すこともできる。そのとき有害なアンモニアができるので、肝臓が必要になる。',
+  act(G){ if(G.flow<1) return F('血流が足りない（心臓を先に使おう）');
+    if(G.blood.amino<1) return F('血液中にアミノ酸がない（胃→すい臓→小腸の3段階が必要）');
+    if(G.blood.oxygen<1) return F('酸素が足りない');
+    const lim=o2check(G,1); if(lim) return lim;
+    G.flow--; G.blood.amino--; G.blood.oxygen--; G.o2used++; G.energy+=3; G.waste.co2++; G.waste.ammonia++; if(G.burned)G.burned.a++;
+    return T('細胞呼吸（アミノ酸）：エネルギー+3／アンモニア+1（肝臓が必要！）'); }},
+cellF:{kind:'organ', name:'細胞：脂肪をつかう', ico:'🔥', cat:'細胞呼吸', cost:6, flow:1,
+  text:'血流1｜脂肪1＋酸素2 → エネルギー4、二酸化炭素+2',
+  sci:'脂肪は同じ重さあたりでとり出せるエネルギーが最も大きい。そのぶん分解には多くの酸素が必要になる。',
+  act(G){ if(G.flow<1) return F('血流が足りない（心臓を先に使おう）');
+    if(G.blood.fat<1) return F('血液中に脂肪がない（たんのう→すい臓で分解し吸収しよう）');
+    if(G.blood.oxygen<2) return F('酸素が2つ必要');
+    const lim=o2check(G,2); if(lim) return lim;
+    G.flow--; G.blood.fat--; G.blood.oxygen-=2; G.o2used+=2; G.energy+=4; G.waste.co2+=2; if(G.burned)G.burned.f++;
+    return T('細胞呼吸（脂肪）：エネルギー+4／二酸化炭素+2'); }},
+
+/* ---------- 排出 ---------- */
+kanzou:{kind:'organ', name:'肝臓', ico:'🟤', cat:'排出', cost:5, flow:1,
+  text:'血流1｜アンモニア を最大3つ 尿素 に変える',
+  sci:'肝臓は有害なアンモニアを害の少ない尿素に変える。ほかにも胆汁をつくる、ブドウ糖をグリコーゲンに変えてたくわえる、有害な物質を分解する（解毒）など、はたらきが非常に多い臓器。',
+  act(G){ if(G.flow<1) return F('血流が足りない（心臓を先に使おう）');
+    const n=Math.min(3,G.waste.ammonia); if(!n) return F('アンモニアがない');
+    G.flow--; G.waste.ammonia-=n; G.waste.urea+=n; return T(`肝臓：アンモニア${n} → 尿素${n}（害の少ない物質へ）`); }},
+jinzou:{kind:'organ', name:'じん臓', ico:'🫘', cat:'排出', cost:4, flow:1,
+  text:'血流1｜尿素 を最大4つ 取りのぞく（尿になる）',
+  sci:'じん臓は血液から尿素などの不要物をこしとって尿をつくる。尿は輸尿管を通ってぼうこうにためられ、体外に出される。',
+  act(G){ if(G.flow<1) return F('血流が足りない（心臓を先に使おう）');
+    const n=Math.min(4,G.waste.urea); if(!n) return F('尿素がない');
+    G.flow--; G.waste.urea-=n; return T(`じん臓が尿素${n}をこしとった → 尿へ`); }},
+bouko:{kind:'organ', name:'ぼうこう', ico:'🚻', cat:'排出', cost:3,
+  text:'このターン、尿素によるダメージを受けない',
+  sci:'じん臓でつくられた尿を一時的にためておく袋。だからすぐに出さなくても平気でいられる。',
+  act(G){ if(G.bouko) return F('すでに使っている'); G.bouko=true; return T('ぼうこうが尿をためた：このターンは尿素のダメージなし'); }},
+
+/* ============================================================
+   生活カード（山札に入る）
+   ============================================================ */
+gohan:{kind:'life', name:'ごはん', ico:'🍚', cat:'食事', cost:2,
+  text:'消化管に でんぷん3',
+  sci:'ごはん・パン・いもの主成分はでんぷん（炭水化物）。消化されるとブドウ糖になり、おもにエネルギー源になる。',
+  act(G){ G.gut.starch+=3; return T('でんぷん+3'); }},
+pan:{kind:'life', name:'パン', ico:'🍞', cat:'食事', cost:2,
+  text:'消化管に でんぷん2・脂肪1',
+  sci:'パンにはでんぷんのほかに油脂もふくまれる。食品によって栄養素の組み合わせがちがう。',
+  act(G){ G.gut.starch+=2; G.gut.fat+=1; return T('でんぷん+2／脂肪+1'); }},
+nikuzakana:{kind:'life', name:'肉・魚', ico:'🍖', cat:'食事', cost:3,
+  text:'消化管に タンパク質3・脂肪1',
+  sci:'肉や魚にはタンパク質が多い。タンパク質はアミノ酸に分解され、おもに体をつくる材料になる。分解には胃液・すい液・腸液の3つが必要で、三大栄養素のなかで最も手間がかかる。',
+  act(G){ G.gut.protein+=3; G.gut.fat+=1; return T('タンパク質+3／脂肪+1'); }},
+agemono:{kind:'life', name:'あげ物', ico:'🍤', cat:'食事', cost:3,
+  text:'消化管に 脂肪4',
+  sci:'脂肪は消化に胆汁（乳化）とすい液（リパーゼ）の両方が必要。ただしリパーゼで最後まで分解されるので、腸液の出番はない。',
+  act(G){ G.gut.fat+=4; return T('脂肪+4'); }},
+teishoku:{kind:'life', name:'定食', ico:'🍱', cat:'食事', cost:6,
+  text:'消化管に でんぷん3・タンパク質3・脂肪2',
+  sci:'炭水化物・タンパク質・脂肪を三大栄養素という。どれもかたよらずとることが大切。',
+  act(G){ G.gut.starch+=3; G.gut.protein+=3; G.gut.fat+=2; return T('でんぷん+3／タンパク質+3／脂肪+2'); }},
+yasai:{kind:'life', name:'野菜', ico:'🥬', cat:'食事', cost:3,
+  text:'消化しきれずに残った物を3つ取りのぞく、体力+2',
+  sci:'野菜にふくまれる食物繊維はヒトの消化酵素では分解されないが、大腸のはたらきを助ける。ビタミンや無機物の供給源にもなる。',
+  act(G){ let n=3,r=0; for(const k of ['fat','protein','starch','emul','peptone','peptide','maltose']){const t=Math.min(n,G.gut[k]); if(t){G.gut[k]-=t;n-=t;r+=t;}}
+    G.hp=Math.min(CFG.startHP,G.hp+2); return T(`消化管を整理（${r}）／体力+2`); }},
+mizu:{kind:'life', name:'水を飲む', ico:'🚰', cat:'生活', cost:2,
+  text:'尿素-3',
+  sci:'水分をとると、じん臓がつくる尿の量がふえ、尿素などの不要物を体の外へ出しやすくなる。',
+  act(G){ const n=Math.min(3,G.waste.urea); if(!n) return F('尿素がない'); G.waste.urea-=n; return T(`尿として尿素${n}を出した`); }},
+shinkokyu:{kind:'life', name:'深呼吸', ico:'🌬️', cat:'生活', cost:2,
+  text:'酸素+3、二酸化炭素-2',
+  sci:'呼吸の回数や深さは、血液中の二酸化炭素の量によって自動的に調節されている。',
+  act(G){ G.blood.oxygen+=3; const d=Math.min(2,G.waste.co2); G.waste.co2-=d; return T('酸素+3'); }},
+neru:{kind:'life', name:'ねる', ico:'😴', cat:'生活', cost:2,
+  text:'体力+4',
+  sci:'睡眠中は体の修復が進む。成長ホルモンも多く出る。',
+  act(G){ if(G.hp>=CFG.startHP) return F('体力は満タン'); G.hp=Math.min(CFG.startHP,G.hp+4); return T('体力+4'); }},
+undou:{kind:'life', name:'運動する', ico:'🏃', cat:'生活', cost:4,
+  text:'エネルギー4 → 成長ポイント2（効率がよい）',
+  sci:'運動すると筋肉が多くのエネルギーを必要とし、呼吸も脈拍も速くなる。体は使うことで成長する。',
+  act(G){ if(G.energy<4) return F('エネルギーが4必要'); G.energy-=4; G.vp+=2; return T('運動した：成長ポイント+2'); }},
+};
+
+const ORGAN_SHOP = ['shinzou','hai','oukakumaku','sekkekkyu','kesshou','hakkekkyu','kesshouban',
+  'daeki','i','tannou','suizou','shouchou','daichou','cellG','cellA','cellF','kanzou','jinzou','bouko'];
+const LIFE_SHOP = ['gohan','pan','nikuzakana','agemono','teishoku','yasai','mizu','shinkokyu','neru','undou'];
+
+const START_ORGANS = ['shinzou','hai','daeki','shouchou','cellG'];
+const START_DECK = ['gohan','gohan','gohan','gohan','pan','pan','nikuzakana','nikuzakana','neru','shinkokyu'];
+
+const EVENTS = [
+  {id:'kaze', name:'かぜをひいた', dmg:3, hardDmg:6, guard:'hakkekkyu', ico:'🤒',
+   msg:'病原体が体に入った', guardMsg:'白血球が病原体をとらえて分解した（食作用・ダメージなし）'},
+  {id:'kega', name:'けがをした', dmg:2, hardDmg:6, guard:'kesshouban', ico:'🩸',
+   msg:'出血した', guardMsg:'血小板が血液を固めて止血した（ダメージなし）'},
+  {id:'kuuhuku', name:'おなかがすいた', dmg:0, hardDmg:0, guard:null, ico:'🍽️',
+   msg:'エネルギーが足りないと感じる（血液中のブドウ糖が減る）',
+   effect:(G,hard)=>{ let n=hard?2:1; while(n-->0 && G.blood.glucose>0) G.blood.glucose--; }},
+];
+</script>
+<script>
+/* ============================================================
+   ゲーム進行
+   ============================================================ */
+let G, PREV=null;
+const HOOKS={};   /* 画面側が差し込むフック（無ければ何もしない） */
+
+function newGame(){
+  G = {
+    turn:1, hp:CFG.startHP, vp:0, energy:CFG.startEnergy||0, flow:0,
+    plays:CFG.playLimit, buys:CFG.buysPerTurn, bouko:false, over:false, o2used:0,
+    gut:{starch:0,maltose:0,glucose:0,protein:0,peptone:0,peptide:0,amino:0,fat:0,emul:0,fatty:0},
+    blood:{glucose:CFG.startGlucose,amino:0,fat:0,oxygen:0},
+    waste:{co2:0,ammonia:0,urea:0},
+    board:(CFG.startOrgans||START_ORGANS).map(id=>({id,used:false})),
+    deck:shuffle(START_DECK.slice()), hand:[], discard:[],
+    log:[], learned:new Set((CFG.startOrgans||START_ORGANS)), history:[], abs:{g:0,a:0,f:0}, burned:{g:0,a:0,f:0},
+  };
+  PREV=null;
+  draw(CFG.handSize);
+  say('m','ゲーム開始。心臓 → 肺 → 食べる → 消化 → 吸収 → 細胞 の順で体を回そう。');
+  say('m',`スタート時、肝臓のグリコーゲンからつくられた ブドウ糖${CFG.startGlucose} が血液中にある。`);
+}
+
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function draw(n){
+  for(let i=0;i<n;i++){
+    if(!G.deck.length){
+      if(!G.discard.length) break;
+      G.deck = shuffle(G.discard); G.discard = [];
+      say('m','捨て札をきりなおして山札にした');
+    }
+    G.hand.push(G.deck.pop());
+  }
+}
+function say(cls,msg){ G.log.unshift({cls,msg:`[${G.turn}] ${msg}`}); if(G.log.length>150) G.log.pop(); }
+function has(id){ return G.board.some(o=>o.id===id); }
+function countOrgan(id){ return G.board.filter(o=>o.id===id).length; }
+
+/* ============================================================
+   エフェクト（実DOMがある時だけ動く）
+   ============================================================ */
+function isDom(el){ return el && typeof el.getBoundingClientRect==='function'; }
+function toast(el,msg){
+  if(!isDom(el) || typeof document.createElement!=='function') return;
+  const r=el.getBoundingClientRect();
+  const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+  t.style.left=(r.left+r.width/2)+'px'; t.style.top=r.top+'px';
+  document.body.appendChild(t); setTimeout(()=>t.remove(),1800);
+}
+function fx(fromEl,toEl,emoji,n){
+  if(!isDom(fromEl)||!isDom(toEl)) return;
+  const a=fromEl.getBoundingClientRect(), b=toEl.getBoundingClientRect();
+  const cnt=Math.min(n||1,5);
+  for(let i=0;i<cnt;i++){
+    const p=document.createElement('div'); p.className='particle'; p.textContent=emoji;
+    p.style.left=(a.left+a.width/2-9)+'px'; p.style.top=(a.top+a.height/2-9)+'px';
+    document.body.appendChild(p);
+    const dx=b.left+b.width/2-(a.left+a.width/2)+(Math.random()*36-18);
+    const dy=b.top+b.height/2-(a.top+a.height/2)+(Math.random()*24-12);
+    setTimeout(()=>{ p.style.transform=`translate(${dx}px,${dy}px) scale(.55)`; p.style.opacity='0'; }, 40+i*110);
+    setTimeout(()=>p.remove(), 1050+i*110);
+  }
+}
+function pulse(el){ if(!isDom(el)) return; el.classList.add('pulse'); setTimeout(()=>el.classList&&el.classList.remove('pulse'),600); }
+function flashStat(id){
+  if(typeof document.querySelector!=='function') return;
+  const el=document.getElementById(id);
+  if(el&&el.classList){ el.classList.add('statflash'); setTimeout(()=>el.classList.remove('statflash'),700); }
+}
+const FX_TGT={食事:'zone-gut', 生活:'zone-blood', 消化:'zone-gut', 吸収:'zone-blood',
+  呼吸:'zone-blood', 循環:'zone-blood', 細胞呼吸:'stat-energy', 排出:'zone-waste'};
+const FX_ICO={消化:'✨', 吸収:'🟠', 呼吸:'🫧', 循環:'🩸', 細胞呼吸:'⚡', 排出:'💧'};
+function fxFor(cat,srcEl,ico,n){
+  const tgt=document.getElementById(FX_TGT[cat]||'zone-blood');
+  fx(srcEl,tgt,FX_ICO[cat]||ico,n||3);
+  if(cat==='細胞呼吸'){ fx(srcEl,document.getElementById('zone-waste'),'💨',2); flashStat('stat-energy'); }
+}
+
+/* ============================================================
+   操作
+   ============================================================ */
+function useOrgan(i,el){
+  if(G.over) return;
+  const o=G.board[i], c=DB[o.id];
+  if(o.used){ toast(el,'このターンはもう使った'); return; }
+  const r=c.act(G);
+  if(!r.ok){ say('r',`${c.name}：${r.msg}`); toast(el,r.msg); render(); return; }
+  o.used=true; G.learned.add(o.id);
+  say('g',`${c.ico} ${c.name} → ${r.msg}`);
+  pulse(el); fxFor(c.cat,el,c.ico,3);
+  tutEvent('organ',o.id);
+  render();
+}
+function useOrganById(id,el){
+  if(G.over) return;
+  if(!has(id)){ showCard(id,true); return; }
+  const i=G.board.findIndex(o=>o.id===id&&!o.used);
+  if(i<0){ toast(el,'このターンはもう使った'); return; }
+  useOrgan(i,el);
+}
+function playCard(idx,el){
+  if(G.over) return;
+  if(G.plays<=0){ toast(el,`生活カードは1ターン${CFG.playLimit}枚まで`); return; }
+  const id=G.hand[idx], c=DB[id];
+  const r=c.act(G);
+  if(!r.ok){ say('r',`${c.name}：${r.msg}`); toast(el,r.msg); render(); return; }
+  G.hand.splice(idx,1); G.discard.push(id); G.plays--; G.learned.add(id);
+  say('g',`${c.ico} ${c.name} → ${r.msg}`);
+  pulse(el); fxFor(c.cat,el,c.ico,3);
+  tutEvent('life',id);
+  if(G.vp>=CFG.goalVP) return finish(true);
+  render();
+}
+function buy(id,el){
+  if(G.over) return;
+  const c=DB[id];
+  if(G.buys<=0){ toast(el,`1ターンに手に入れられるのは${CFG.buysPerTurn}枚まで`); return; }
+  if(G.energy<c.cost){ toast(el,`エネルギーが足りない（${c.cost}必要）`); return; }
+  G.energy-=c.cost; G.buys--;
+  if(c.kind==='organ'){
+    G.board.push({id,used:false});
+    say('y',`${c.ico} ${c.name} が体に加わった（今すぐ使える）`);
+    fx(el,document.getElementById('bodywrap'),c.ico,1);
+  } else {
+    G.discard.push(id);
+    say('y',`${c.ico} ${c.name} を山札に加えた`);
+    fx(el,document.getElementById('deckbar'),c.ico,1);
+  }
+  tutEvent('buy',id);
+  render();
+}
+function grow(el){
+  if(G.over) return;
+  if(G.energy<CFG.vpCost){ toast(el,`エネルギーが足りない（${CFG.vpCost}必要）`); return; }
+  G.energy-=CFG.vpCost; G.vp++;
+  say('y',`体が成長した：成長ポイント ${G.vp}／${CFG.goalVP}`);
+  fx(document.getElementById('stat-energy'),document.getElementById('stat-vp'),'🌱',3);
+  flashStat('stat-vp');
+  tutEvent('grow');
+  if(G.vp>=CFG.goalVP) return finish(true);
+  render();
+}
+function endTurn(){
+  if(G.over) return;
+  if(HOOKS.beforeDamage) HOOKS.beforeDamage(G);
+  if(G.over) return;
+  let dmg=0, why=[];
+  if(G.waste.co2>3){ const d=G.waste.co2-3; dmg+=d; why.push(`二酸化炭素がたまりすぎ（-${d}）肺で出そう`); }
+  if(G.waste.ammonia>0){ const d=G.waste.ammonia*2; dmg+=d; why.push(`アンモニアは有害！（-${d}）肝臓で尿素に変えよう`); }
+  if(G.waste.urea>5){
+    if(G.bouko) say('m','ぼうこうが尿をためた：尿素のダメージなし');
+    else { const d=G.waste.urea-5; dmg+=d; why.push(`尿素がたまりすぎ（-${d}）じん臓でこしとろう`); }
+  }
+  if(dmg){
+    G.hp-=dmg; say('r','体調が悪化：'+why.join('／'));
+    if(HOOKS.damage) HOOKS.damage(dmg,why);
+    const app=document.getElementById('app');
+    if(app&&app.classList){ app.classList.add('shake'); setTimeout(()=>app.classList.remove('shake'),700); }
+  }
+  G.history.push({t:G.turn, e:G.energy, vp:G.vp, hp:G.hp});
+  G.discard.push(...G.hand); G.hand=[];
+
+  if(G.hp<=0) return finish(false,'体力が0になった。不要物の処理が追いつかなかった。');
+  if(G.turn>=CFG.maxTurn) return finish(false,`${CFG.maxTurn}ターンで成長ポイントが目標に届かなかった（${G.vp}／${CFG.goalVP}）`);
+
+  G.turn++; G.flow=0; G.plays=CFG.playLimit; G.buys=CFG.buysPerTurn; G.bouko=false; G.o2used=0; G.abs={g:0,a:0,f:0}; G.burned={g:0,a:0,f:0};
+  G.board.forEach(o=>o.used=false);
+  draw(CFG.handSize);
+
+  if(G.turn>=CFG.eventFrom && Math.random()<CFG.eventRate){
+    const ev=EVENTS[Math.floor(Math.random()*EVENTS.length)];
+    if(ev.guard && has(ev.guard)){ say('g',`${ev.ico} ${ev.name}：${ev.guardMsg}`); if(HOOKS.guard) HOOKS.guard(ev); }
+    else {
+      if(ev.effect) ev.effect(G,CFG.hard);
+      const d = CFG.hard ? (ev.hardDmg||ev.dmg) : ev.dmg;
+      if(d){ G.hp-=d; say('r',`${ev.ico} ${ev.name}：${ev.msg}（体力-${d}）`); }
+      else say('r',`${ev.ico} ${ev.name}：${ev.msg}`);
+      if(HOOKS.event) HOOKS.event(ev, d||0);
+      if(G.hp<=0) return finish(false,'体力が0になった。病気やけがへの備えが足りなかった。');
+    }
+  }
+  tutEvent('end');
+  render();
+}
+function finish(win,reason){ G.over=true; render(); showResult(win,reason); }
+
+/* 数値の増減フロート（PC/スマホ共通） */
+function delta(cur,key,invert){
+  if(!PREV) return '';
+  const old=key.split('.').reduce((o,k)=>o&&o[k],PREV);
+  if(old===undefined||old===cur) return '';
+  const d=cur-old;
+  const good = invert ? d<0 : d>0;
+  return `<span class="delta ${good?'up':'dn'}">${d>0?'+':''}${d}</span>`;
+}
+</script>
+<script>
+/* ============================================================
+   描画
+   ============================================================ */
+const $ = id => document.getElementById(id);
+
+/* 体の図：臓器の位置（%） */
+const NODE_LAB={cellG:'細胞(糖)',cellA:'細胞(ﾀﾝﾊﾟｸ)',cellF:'細胞(脂肪)',oukakumaku:'横隔膜',
+  sekkekkyu:'赤血球',hakkekkyu:'白血球',kesshouban:'血小板',kesshou:'血しょう',tannou:'たんのう'};
+const POS={
+  daeki:[50,8], hai:[64,22], shinzou:[41,25], oukakumaku:[54,33],
+  kanzou:[35,40], tannou:[44,47], i:[65,39], suizou:[58,47],
+  shouchou:[50,56], daichou:[50,64], jinzou:[70,51], bouko:[50,71],
+  cellG:[36,85], cellA:[64,85], cellF:[50,93],
+  kesshou:[10,26], sekkekkyu:[10,40], hakkekkyu:[10,54], kesshouban:[10,68],
+};
+
+function guideActive(){
+  const canFlow=G.board.some(o=>!o.used&&(o.id==='shinzou'||o.id==='kesshou'));
+  if(G.flow===0&&canFlow) return 0;
+  if(G.energy>=CFG.vpCost) return 4;
+  const raw=G.gut.starch+G.gut.protein+G.gut.fat;
+  const mid=G.gut.maltose+G.gut.peptone+G.gut.peptide+G.gut.emul+G.gut.glucose+G.gut.amino+G.gut.fatty;
+  const nut=G.blood.glucose+G.blood.amino+G.blood.fat;
+  if(nut>0&&G.blood.oxygen>0&&G.flow>0) return 3;
+  if(raw+mid>0) return 2;
+  if(G.plays>0) return 1;
+  return 4;
+}
+
+function render(){
+  /* ステータス */
+  $('stats').innerHTML = `
+    <div class="stat" id="stat-turn"><b>${G.turn}<span style="font-size:11px;color:#9aa0b8">/${CFG.maxTurn}</span></b><span>ターン</span></div>
+    <div class="stat" id="stat-hp"><b style="color:#f87171">${Math.max(0,G.hp)}${delta(G.hp,'hp')}</b><span>体力</span><div class="hpbar"><i style="width:${Math.max(0,G.hp/CFG.startHP*100)}%"></i></div></div>
+    <div class="stat" id="stat-energy"><b style="color:#3fc4a0">${G.energy}${delta(G.energy,'energy')}</b><span>エネルギー</span></div>
+    <div class="stat" id="stat-vp"><b style="color:#f2d13c">${G.vp}<span style="font-size:11px;color:#9aa0b8">/${CFG.goalVP}</span>${delta(G.vp,'vp')}</b><span>成長ポイント</span></div>`;
+
+  /* 体の図 */
+  $('flowbig').textContent=G.flow;
+  $('flowdelta').innerHTML=delta(G.flow,'flow');
+  const bw=$('bodywrap');
+  if(bw&&bw.classList){ G.flow>0?bw.classList.add('flowing'):bw.classList.remove('flowing'); }
+  $('nodes').innerHTML = Object.keys(POS).map(id=>{
+    const c=DB[id], [x,y]=POS[id];
+    const owned=G.board.filter(o=>o.id===id).length;
+    const unused=G.board.filter(o=>o.id===id&&!o.used).length;
+    const cls = owned? (unused?'':'spent') : 'ghost';
+    const short=NODE_LAB[id]||c.name.split('（')[0];
+    return `<button class="onode ${cls}" id="node-${id}" style="left:${x}%;top:${y}%"
+      onclick="useOrganById('${id}',this)" oncontextmenu="showCard('${id}');return false"
+      title="${c.text}">
+      ${owned>1?`<span class="ocnt">${unused}/${owned}</span>`:''}
+      <span class="oico">${c.ico}</span><span class="olab">${short}</span></button>`;
+  }).join('');
+
+  /* 進行ガイド */
+  const act=guideActive();
+  const gutRaw=G.gut.starch+G.gut.protein+G.gut.fat;
+  const gutMid=G.gut.maltose+G.gut.peptone+G.gut.peptide+G.gut.emul+G.gut.glucose+G.gut.amino+G.gut.fatty;
+  const nut=G.blood.glucose+G.blood.amino+G.blood.fat;
+  const STEPS=[
+    ['🩸','血流をつくる',`${G.flow}`,'心臓や血しょうを使って血流をつくる。体の中の臓器は血流がないと働けない。'],
+    ['🍚','食べる',`${gutRaw}`,'手札の食事カードで、消化管に栄養素（でんぷん・タンパク質・脂肪）を入れる。消化管の中はまだ「体の外」！'],
+    ['🫙','消化・吸収',`${gutMid}`,'だ液せん→胃→たんのう→すい臓の順に分解し、小腸の柔毛で血液へ吸収する。'],
+    ['⚡','細胞呼吸',`${nut}養分`,'血液の養分＋酸素から、細胞がエネルギーをとり出す。二酸化炭素などの不要物も出るので処理を忘れずに。'],
+    ['🌱','成長する',`${G.vp}/${CFG.goalVP}`,`エネルギー3→成長ポイント1（「運動する」カードなら4→2でお得）。${CFG.maxTurn}ターン以内に${CFG.goalVP}ためればクリア！`],
+  ];
+  $('flowbar').innerHTML = STEPS.map((s,i)=>`
+    <button class="step ${i===act?'active':''}" onclick="showGuide(${i})">
+      <span class="sic">${s[0]}</span><span class="snm">${s[1]}</span><span class="sval">${s[2]}</span>
+      ${i<4?'<span class="arr">▶</span>':''}</button>`).join('');
+
+  /* リソース */
+  const row=(nm,v,key,invert,warn)=>`<div class="res ${v?'':'zero'}"><span>${nm}</span><b class="${warn?'warn':''}">${v}${delta(v,key,invert)}</b></div>`;
+  let h='<div class="zone gut" id="zone-gut"><h3>消化管の中 <em>ここはまだ「体の外」</em></h3>';
+  for(const k in GUTNAMES) h+=row(GUTNAMES[k],G.gut[k],'gut.'+k);
+  h+='</div><div class="zone blood" id="zone-blood"><h3>血液・リンパ管 <em>吸収された「体の中」</em></h3>';
+  for(const k in BLOODNAMES){
+    h+=row(BLOODNAMES[k],G.blood[k],'blood.'+k);
+    if(k==='oxygen' && CFG.hard){
+      const lim=o2limit(G), full=G.o2used>=lim;
+      h+=`<div class="res" style="font-size:10.5px"><span style="color:#6d7390">└ 全身へ運べた酸素</span>`
+       + `<b class="${full?'warn':''}" style="font-size:12px">${G.o2used}/${lim}</b></div>`;
+    }
+  }
+  h+='</div><div class="zone waste" id="zone-waste"><h3>不要物 <em>ためると体力が減る</em></h3>';
+  h+=row(WASTENAMES.co2,G.waste.co2,'waste.co2',true,G.waste.co2>3);
+  h+=row(WASTENAMES.ammonia,G.waste.ammonia,'waste.ammonia',true,G.waste.ammonia>0);
+  h+=row(WASTENAMES.urea,G.waste.urea,'waste.urea',true,G.waste.urea>5);
+  h+='<div class="note">二酸化炭素4以上／アンモニア1以上／尿素6以上でターン終了時にダメージ</div></div>';
+  $('res').innerHTML=h;
+
+  /* 手札 */
+  $('hand').innerHTML = G.hand.map((id,i)=>{
+    const c=DB[id];
+    return `<button class="card life" onclick="playCard(${i},this)" oncontextmenu="showCard('${id}');return false">
+      <span class="info" onclick="event.stopPropagation();showCard('${id}')">?</span>
+      <div class="ico">${c.ico}</div><div class="nm">${c.name}</div>
+      <div class="cat">${c.cat}</div><div class="tx">${c.text}</div></button>`;
+  }).join('') || '<div style="color:#6d7390;padding:16px">手札がない。ターンを終了しよう。</div>';
+  $('handtag').textContent = `あと${G.plays}枚プレイできる`;
+
+  /* ショップ */
+  const shopCard = id=>{
+    const c=DB[id], can=G.energy>=c.cost&&G.buys>0;
+    const owned = c.kind==='organ' ? G.board.filter(o=>o.id===id).length : 0;
+    return `<button class="card buy ${can?'':'cant'}" onclick="buy('${id}',this)" oncontextmenu="showCard('${id}');return false">
+      <div class="cost">${c.cost}</div>
+      <span class="info" onclick="event.stopPropagation();showCard('${id}')">?</span>
+      <div style="display:flex;gap:7px;align-items:center"><span style="font-size:17px">${c.ico}</span>
+      <span><span class="nm" style="margin:0">${c.name}${owned?` <span style="color:#3fc4a0">×${owned}</span>`:''}</span>
+      <span class="cat" style="display:block">${c.cat}</span></span></div>
+      <div class="tx" style="min-height:0;margin-top:4px">${c.text}</div></button>`;
+  };
+  $('shop').innerHTML =
+    `<div class="shophead">臓器（体に残り、毎ターン使える）</div>` + ORGAN_SHOP.map(shopCard).join('') +
+    `<div class="shophead">生活カード（山札に加わる）</div>` + LIFE_SHOP.map(shopCard).join('');
+  $('buytag').textContent = G.buys>0?`あと${G.buys}枚`:'このターンは買えない';
+
+  $('deckbar').innerHTML = `山札 <b>${G.deck.length}</b>　捨て札 <b>${G.discard.length}</b>　生活カード合計 <b>${G.deck.length+G.discard.length+G.hand.length}</b>　臓器 <b>${G.board.length}</b>`;
+  $('hint').innerHTML = hint();
+  $('log').innerHTML = G.log.map(l=>`<div class="${l.cls}">${l.msg}</div>`).join('');
+
+  /* スナップショット更新 */
+  PREV=JSON.parse(JSON.stringify({gut:G.gut,blood:G.blood,waste:G.waste,energy:G.energy,vp:G.vp,hp:G.hp,flow:G.flow}));
+
+  if(typeof tutApply==='function') tutApply();
+}
+
+function hint(){
+  if(G.flow===0 && G.board.some(o=>!o.used&&DB[o.id].flow)) return '💡 血流が0。<b>❤️心臓</b>（や血しょう）を先に使わないと、体の中で働く臓器は動けない。';
+  if(G.gut.protein>0 && !has('i')) return '💡 タンパク質が消化管にたまっている。<b>胃</b>（ペプシン）がないと分解が始まらない → アミノ酸は血液に入らない。';
+  if(G.gut.fat>0 && !has('tannou')) return '💡 脂肪が消化管にたまっている。<b>たんのう（胆汁）</b>で乳化してから、<b>すい臓</b>のリパーゼで分解する。2つそろって初めて血液に入る。';
+  if(G.gut.emul>0 && !has('suizou')) return '💡 乳化した脂肪がある。これを分解できるのは<b>すい液のリパーゼ</b>だけ。すい臓を手に入れよう。';
+  if(G.gut.peptone>0 && !has('suizou')) return '💡 ペプトンは<b>すい液のトリプシン</b>でしか次に進めない。すい臓を手に入れよう（タンパク質は胃→すい臓→小腸の3段階）。';
+  if(!has('suizou') && G.gut.peptone+G.gut.emul>1) return '💡 ペプトンや乳化した脂肪がたまっている。この先へ進めるのは<b>すい液（トリプシン・リパーゼ）</b>だけ。'
+  ;
+  if(G.gut.maltose>2 && !has('shouchou')) return '💡 ばくが糖がたまっている。ブドウ糖に変えるのは<b>小腸の腸液（マルターゼ）</b>。アミラーゼはここまでしかできない。';
+  if(G.waste.ammonia>0 && !has('kanzou')) return '⚠️ アンモニアは有害。<b>肝臓</b>で尿素に変えないと毎ターン大きなダメージを受ける。';
+  if(G.waste.ammonia>0) return '⚠️ アンモニアが残っている。<b>肝臓</b>を使って尿素に変えよう。';
+  if(G.waste.urea>5) return '⚠️ 尿素がたまっている。<b>じん臓</b>でこしとって尿として出そう。';
+  if(G.waste.co2>3) return '⚠️ 二酸化炭素がたまっている。<b>肺・横隔膜・血しょう</b>で出そう。';
+  if(G.energy>=CFG.vpCost) return `🌱 エネルギーが${G.energy}ある！「成長する」ボタンで成長ポイントに変えるか、ためて新しい臓器を買おう。`;
+  if(CFG.hard && G.o2used>=o2limit(G) && G.board.some(o=>!o.used&&DB[o.id].cat==='細胞呼吸')) return `⚠️ このターンに全身へ運べる酸素を使い切った（${G.o2used}/${o2limit(G)}）。<b>赤血球</b>を1つふやすごとに、運べる酸素が${CFG.o2perRBC}ふえる。`;
+  if(CFG.hard && G.turn>=CFG.eventFrom-1 && !has('hakkekkyu')) return '⚠️ かぜをひくと体力-6。<b>白血球</b>を体に入れておけば無効化できる（持っているだけでよい）。';
+  if(CFG.hard && G.turn>=CFG.eventFrom-1 && !has('kesshouban')) return '⚠️ けがをすると体力-5。<b>血小板</b>を体に入れておけば無効化できる（持っているだけでよい）。';
+  if(G.blood.oxygen===0) return '💡 酸素がない。<b>🫁肺</b>を使わないと細胞はエネルギーをとり出せない。';
+  return '💡 上の「ゲームの流れ」で光っているステップが今やること。臓器は使う順番が大事！';
+}
+function showGuide(i){
+  const s=[['🩸','血流をつくる'],['🍚','食べる'],['🫙','消化・吸収'],['⚡','細胞呼吸'],['🌱','成長する']][i];
+  const tx=[
+    '心臓や血しょうを使って血流をつくる。肺・小腸・細胞・肝臓・じん臓は、使うたびに血流を1消費する。<br><b>すべての臓器は血液でつながっている</b>ことが、そのままルールになっている。',
+    '手札の食事カードで消化管に栄養素を入れる。ごはん＝でんぷん、肉・魚＝タンパク質、あげ物＝脂肪。<br>消化管の中はまだ<b>「体の外」</b>。入れただけでは使えない！',
+    'だ液せん（アミラーゼ）→ 胃（ペプシン）→ たんのう（胆汁で乳化）→ すい臓（万能のすい液）の順で分解し、<b>小腸の柔毛</b>で血液・リンパ管へ吸収する。',
+    '血液の養分＋酸素から、細胞がエネルギーをとり出す（<b>細胞による呼吸</b>）。二酸化炭素、タンパク質ならアンモニアも出るので、肺・肝臓・じん臓で処理する。',
+    `エネルギー3 → 成長ポイント1。「運動する」カードならエネルギー4 → 成長ポイント2でお得。<br><b>${CFG.maxTurn}ターン以内に成長ポイント${CFG.goalVP}</b>でクリア！`,
+  ][i];
+  openModal(`<h2>${s[0]} ${s[1]}</h2><p style="margin-top:8px">${tx}</p>`);
+}
+</script>
+<script>
+/* ============================================================
+   モーダル
+   ============================================================ */
+function openModal(html){ $('modal').innerHTML = `<button class="close" onclick="closeModal()">とじる</button>` + html; $('mask').classList.add('on'); }
+function closeModal(){ $('mask').classList.remove('on'); }
+$('mask').addEventListener('click', e=>{ if(e.target.id==='mask') closeModal(); });
+
+function showCard(id,ghost){
+  const c=DB[id];
+  openModal(`<h2>${c.ico} ${c.name}</h2>
+    <p style="color:#9aa0b8;font-size:12px">${c.cat}　／　コスト ${c.cost}${c.flow?`　／　血流${c.flow}を使う`:''}</p>
+    <p style="margin-top:10px">${c.text}</p>
+    ${ghost?`<p style="color:#f2d13c;font-size:12px">まだ持っていない臓器。右の「手に入れる」からエネルギー${c.cost}で体に加えられる。</p>`:''}
+    <div class="sci"><b>理科のポイント</b><br>${c.sci}</div>`);
+}
+
+const CHAINS = `
+<div class="chain"><b>でんぷん</b> →〔だ液・すい液の<u>アミラーゼ</u>〕→ <b>ばくが糖</b> →〔腸液の<u>マルターゼ</u>〕→ <b>ブドウ糖</b> →〔柔毛〕→ 毛細血管</div>
+<div class="chain"><b>タンパク質</b> →〔胃液の<u>ペプシン</u>〕→ <b>ペプトン</b> →〔すい液の<u>トリプシン</u>〕→ <b>ペプチド</b> →〔腸液の<u>ペプチダーゼ</u>〕→ <b>アミノ酸</b> →〔柔毛〕→ 毛細血管<br><span style="color:#9aa0b8;font-size:11px">※3つの消化液が必要なのはタンパク質だけ</span></div>
+<div class="chain"><b>脂肪</b> →〔胆汁で<u>乳化</u>（酵素ではない）〕→ <b>乳化した脂肪</b> →〔すい液の<u>リパーゼ</u>〕→ <b>脂肪酸＋モノグリセリド</b> →〔柔毛で脂肪にもどる〕→ リンパ管<br><span style="color:#9aa0b8;font-size:11px">※リパーゼだけで最後まで分解できる</span></div>
+<div class="chain">ブドウ糖＋酸素 →〔細胞による呼吸〕→ <b>エネルギー</b>＋二酸化炭素＋水</div>
+<div class="chain">アミノ酸を分解 → <b>アンモニア（有害）</b> →〔肝臓〕→ <b>尿素</b> →〔じん臓〕→ 尿 → ぼうこう → 体外へ</div>
+<div class="chain">全身 → 二酸化炭素 →〔血しょうが運ぶ〕→ <b>肺胞</b> → 体外へ／肺胞 → <b>酸素</b> →〔赤血球のヘモグロビン〕→ 全身</div>`;
+
+function showHelp(){
+  openModal(`<h2>ルールと体のしくみ</h2>
+  <h3>目的</h3>
+  <p>あなたは「ひとつの体」を運営します。食べ物を消化・吸収し、酸素と合わせてエネルギーをとり出し、<b>${CFG.maxTurn}ターン以内に成長ポイント${CFG.goalVP}</b>をためればクリア。体力が0になると負けです。</p>
+  <h3>2種類のカード</h3>
+  <ul>
+    <li><b>臓器カード</b>…手に入れると体にずっと残り、<b>1ターンに1回ずつ</b>使えます。使う順番は自由。</li>
+    <li><b>生活カード</b>…山札に加わり、毎ターン${CFG.handSize}枚引きます。プレイできるのは<b>1ターン${CFG.playLimit}枚まで</b>。</li>
+  </ul>
+  <h3>1ターンの流れ</h3>
+  <ul>
+    <li>臓器を好きな順番で使う／生活カードを${CFG.playLimit}枚までプレイする</li>
+    <li>エネルギーでカードを${CFG.buysPerTurn}枚まで買う／エネルギー${CFG.vpCost}で成長ポイント1を得る</li>
+    <li>ターン終了 → 不要物がたまっていると体力が減り、手札は捨て札へ</li>
+    <li>山札が尽きたら捨て札をきりなおす</li>
+  </ul>
+  <h3>血流というしくみ</h3>
+  <p>体の中で働く臓器（肺・小腸・細胞・肝臓・じん臓）は、使うたびに<b>血流</b>を1つ消費します。血流をつくれるのは心臓と血しょうだけ。<u>すべての臓器は血液でつながっている</u>ことが、そのままルールになっています。</p>
+  <h3>覚えるべき経路（これがそのまま必勝法）</h3>
+  ${CHAINS}
+  <h3>まちがえやすいポイント</h3>
+  <ul>
+    <li>消化管の中はまだ<b>「体の外」</b>。吸収されてはじめて体の中に入る。</li>
+    <li>胆汁は肝臓でつくられ、たんのうにためられる。<b>消化酵素はふくまない</b>（脂肪を乳化するだけ）。</li>
+    <li>脂肪酸とモノグリセリドは、毛細血管ではなく<b>リンパ管</b>に入る。</li>
+    <li><b>アミラーゼはでんぷんを「ばくが糖」までしか分解できない</b>。ばくが糖→ブドウ糖は小腸の腸液の<b>マルターゼ</b>。</li>
+    <li>タンパク質だけは<b>胃液・すい液・腸液の3つ</b>を通らないとアミノ酸にならない。ペプシンもトリプシンも、アミノ酸まではしない。</li>
+    <li>アンモニアを尿素に変えるのは<b>肝臓</b>、尿素をこしとるのは<b>じん臓</b>。役割がちがう。</li>
+  </ul>
+  <h3>ゲームのつごう（実際の体とちがうところ）</h3>
+  <p>ゲームではエネルギーを次のターンに持ちこせますが、実際の体ではエネルギー（ATP）をためておくことはできません。余った養分は肝臓にグリコーゲンとして、また脂肪としてたくわえられます。</p>`);
+}
+
+function showResult(win,reason){
+  const used=[...G.learned].map(id=>DB[id]);
+  const cats={};
+  used.forEach(c=>{ (cats[c.cat]=cats[c.cat]||[]).push(c.name); });
+  const list=Object.keys(cats).map(k=>`<li><b>${k}</b>：${cats[k].join('、')}</li>`).join('');
+  const missing=[['suizou','すい臓'],['shouchou','小腸（柔毛）'],['kanzou','肝臓'],['jinzou','じん臓'],['i','胃'],['tannou','たんのう（胆汁）']]
+    .filter(([id])=>!G.board.some(o=>o.id===id)).map(([,n])=>n);
+  openModal(`<h2>${win?'🎉 クリア！':'💀 ゲームオーバー'}</h2>
+  <p>${win?`${G.turn}ターンで成長ポイント${CFG.goalVP}を達成した。体をうまく経営できた。`:reason}</p>
+  <p style="margin-top:8px;color:#9aa0b8">ターン ${G.turn}／体力 ${Math.max(0,G.hp)}／成長ポイント ${G.vp}／臓器 ${G.board.length}個／生活カード ${G.deck.length+G.discard.length+G.hand.length}枚</p>
+  ${missing.length?`<div class="sci"><b>手に入れなかった臓器</b><br>${missing.join('、')}<br>次はこれらをそろえると、養分がむだなくエネルギーに変わる。</div>`:''}
+  <h3>このゲームで使ったはたらき</h3>
+  <ul>${list||'<li>（記録なし）</li>'}</ul>
+  <h3>体の中で起きていたこと</h3>
+  ${CHAINS}
+  <h3>ふり返ってみよう</h3>
+  <ul>
+    <li>ごはん（でんぷん）が血液に入るまでに、いくつの消化液が関わった？ 肉（タンパク質）はいくつ？</li>
+    <li>アミラーゼは、でんぷんを何にするところまで？ その先は何という酵素？</li>
+    <li>胆汁は「消化酵素」といえる？ いえないのはなぜ？</li>
+    <li>アンモニアが出たとき、どの臓器が何をした？ そのあと不要物はどうなった？</li>
+    <li>心臓を使わないと肺も細胞も動かなかった。それはなぜ？</li>
+    <li>脂肪から吸収された養分だけ、入る管がちがった。何という管？</li>
+  </ul>
+  <div style="margin-top:14px"><button class="btn primary" onclick="closeModal();showStart();">もう一度あそぶ</button></div>`);
+}
+
+const LEVELS={
+  easy:{name:'やさしい', goalVP:12, maxTurn:18, hard:false,
+    note:'はじめてでも達成できる。授業の1コマ（30〜40分）向き。'},
+  normal:{name:'ふつう', goalVP:16, maxTurn:18, hard:false,
+    note:'臓器のそろえ方をきちんと考えれば届く。おすすめ。'},
+  hard:{name:'むずかしい', goalVP:20, maxTurn:20, hard:true,
+    note:'血液の成分ルールが追加され、赤血球・白血球・血小板をそろえないと勝てない。そのぶんターンは20に。2回目以降の挑戦に。'},
+};
+function setLevel(k){
+  const L=LEVELS[k];
+  CFG.goalVP=L.goalVP; CFG.maxTurn=L.maxTurn; CFG.hard=!!L.hard;
+  CFG.eventFrom = L.hard?4:5;
+  CFG.eventRate = L.hard?0.55:0.4;
+  closeModal(); newGame(); render(); L.hard?showHardRules():showHelp();
+}
+function showHardRules(){
+  openModal(`<h2>むずかしいモードの追加ルール</h2>
+  <p>ふつうまでのルールに加えて、<b>血液の成分</b>が勝敗に直接関わるようになります。</p>
+  <h3>🔴 細胞に届けられる酸素に限りがある</h3>
+  <p>1ターンに細胞呼吸で使える酸素は <b>${CFG.o2base} ＋ 赤血球の数 × ${CFG.o2perRBC}</b> まで。肺でどれだけ酸素をとりこんでも、これ以上は細胞に届きません。</p>
+  <div class="sci">酸素を全身へ運ぶのは赤血球のヘモグロビン。肺でとりこむことと、全身へ届けることは別の仕事です。赤血球やヘモグロビンが不足すると酸素を運べなくなり、この状態を<b>貧血</b>といいます。<br>→ 細胞をふやすだけでは頭打ちになります。<b>赤血球をふやすと、届けられる酸素が${CFG.o2perRBC}ずつふえます。</b></div>
+  <h3>⚪ かぜが重くなる（体力-6）</h3>
+  <p><b>白血球</b>を体に入れておくと無効化されます。使わなくても、持っているだけで効きます。</p>
+  <div class="sci">白血球は体内に入った細菌などの病原体をとらえて分解します（食作用）。</div>
+  <h3>🩹 けがが重くなる（体力-6）</h3>
+  <p><b>血小板</b>を体に入れておくと無効化されます。</p>
+  <div class="sci">血小板は出血したときに血液を固めて止血します。</div>
+  <h3>そのほか</h3>
+  <ul>
+    <li>トラブルは4ターン目から、より高い確率で起きます</li>
+    <li>「おなかがすいた」で減るブドウ糖が2つになります</li>
+    <li>目標は ${CFG.maxTurn}ターンで成長ポイント${CFG.goalVP}</li>
+  </ul>
+  <div style="margin-top:14px"><button class="btn primary" onclick="closeModal();showHelp();">基本ルールも見る</button>
+  <button class="btn" onclick="closeModal()">はじめる</button></div>`);
+}
+function showStart(){
+  openModal(`<h2>臓器アドベンチャー</h2>
+  <p style="color:#9aa0b8">カラダ経営デッキ ／ 中2理科・動物の体のつくりとはたらき</p>
+  <p style="margin-top:10px">あなたは「ひとつの体」を運営します。食べ物を消化・吸収し、酸素と合わせてエネルギーをとり出し、決められたターン数のうちに体を成長させてください。</p>
+  <div class="chain" style="display:flex;gap:12px;align-items:center;border-color:#3fc4a0">
+    <button class="btn primary" style="min-width:110px" onclick="startTutorial()">🎓 チュートリアル</button>
+    <span><b>はじめての人はこちら</b><br><span style="color:#9aa0b8;font-size:11px">2ターンぶん、クリックする場所を順番に案内します（やさしいモードで開始）。</span></span>
+  </div>
+  <h3>むずかしさをえらぶ</h3>
+  ${Object.entries(LEVELS).map(([k,L])=>`
+    <div class="chain" style="display:flex;gap:12px;align-items:center">
+      <button class="btn primary" style="min-width:110px" onclick="setLevel('${k}')">${L.name}</button>
+      <span><b>${L.maxTurn}ターンで成長ポイント${L.goalVP}</b><br><span style="color:#9aa0b8;font-size:11px">${L.note}</span></span>
+    </div>`).join('')}`);
+}
+
+/* ============================================================
+   チュートリアル
+   ============================================================ */
+let TUT=null;
+const TSTEPS=[
+ {t:'ようこそ！あなたはこの「体」の司令塔。<b>左の体の図</b>にある臓器をクリックして働かせ、エネルギーをつくって体を成長させるのが目的だ。', btn:true},
+ {t:'まずは<b>❤️心臓</b>をクリック！ すべての臓器は血液でつながっていて、血流がないと働けない。', target:'#node-shinzou', wait:['organ','shinzou']},
+ {t:'血流が3たまった（体の図の左上🩸）。次は<b>🫁肺</b>をクリック。血流を1使って、酸素を血液にとりこむ。', target:'#node-hai', wait:['organ','hai']},
+ {t:'酸素が入った。次は食事！ 手札の<b>🍚ごはん</b>をクリックして、消化管にでんぷんを入れよう。', target:'#hand', wait:['life','food']},
+ {t:'でんぷんが消化管に入った。でも消化管の中はまだ<b>「体の外」</b>！ <b>💧だ液せん</b>をクリックして、アミラーゼで分解しよう。', target:'#node-daeki', wait:['organ','daeki']},
+ {t:'ばくが糖になった。次は<b>🧻小腸</b>をクリック。腸液で最後まで分解して、柔毛から血液に吸収する。', target:'#node-shouchou', wait:['organ','shouchou']},
+ {t:'ブドウ糖が血液に入った！ 仕上げは<b>⚡細胞</b>（足のあたり）。ブドウ糖＋酸素からエネルギーをとり出す（細胞による呼吸）。', target:'#node-cellG', wait:['organ','cellG']},
+ {t:'エネルギー+2！ ただし<b>二酸化炭素</b>も出た（まん中の「不要物」）。たまりすぎると体力が減るけど、今はまだ大丈夫。<b>「ターン終了」</b>を押そう。', target:'#endturn', wait:['end']},
+ {t:'2ターン目。同じ流れをもう一度：<b>❤️心臓 → 🫁肺 → 🍚食べる → 💧だ液せん → 🧻小腸 → ⚡細胞</b>。順番にクリック！', wait:['organ','cellG']},
+ {t:'エネルギーが3以上たまった。<b>「🌱成長する」ボタン</b>を押そう！ エネルギー3を成長ポイント1に変える。これがこのゲームの目的だ。', target:'#grow', wait:['grow']},
+ {t:'これで基本は全部！ あとは右の一覧から新しい臓器や食べ物を買って、体を強くしていこう。<b>胃やすい臓</b>をそろえると肉や脂肪もエネルギーにできる。困ったら黄色の💡ヒントと「ゲームの流れ」バーを見よう。', btn:true, done:true},
+];
+function startTutorial(){
+  CFG.goalVP=LEVELS.easy.goalVP; CFG.maxTurn=LEVELS.easy.maxTurn;
+  CFG.hard=false; CFG.eventFrom=5; CFG.eventRate=0.4;
+  closeModal(); newGame();
+  /* 山札を固定して、最初の手札に必ずごはんが来るようにする */
+  G.deck=['pan','gohan','nikuzakana','nikuzakana','pan','gohan','shinkokyu','neru','gohan','gohan'];
+  G.hand=[]; draw(CFG.handSize);
+  TUT={i:0}; render(); tutShow();
+}
+function tutEvent(kind,id){
+  if(!TUT) return;
+  const st=TSTEPS[TUT.i];
+  if(!st||!st.wait) return;
+  const [k,v]=st.wait;
+  if(k!==kind) return;
+  if(v==='food'){ if(DB[id].cat!=='食事') return; }
+  else if(v && v!==id) return;
+  TUT.i++; tutShow();
+}
+function tutNext(){ if(!TUT) return; TUT.i++; tutShow(); }
+function tutSkip(){ TUT=null; tutShow(); }
+function tutShow(){
+  if(typeof document.querySelectorAll!=='function') return;
+  let b=document.getElementById('tutbubble');
+  const st=TUT?TSTEPS[TUT.i]:null;
+  if(!TUT || !st || (st.done&&st.shown)){ if(b)b.remove(); if(st&&st.done&&st.shown)TUT=null; tutApply(); return; }
+  if(st.done) st.shown=false;
+  if(!b){ b=document.createElement('div'); b.id='tutbubble'; b.className='tut-bubble'; document.body.appendChild(b); }
+  b.innerHTML=`<div class="tstep">チュートリアル ${TUT.i+1} / ${TSTEPS.length}</div>
+    <div>${st.t}</div>
+    <div class="tacts">
+      ${st.btn?`<button class="btn primary" onclick="${st.done?'tutFinish()':'tutNext()'}">${st.done?'あそびはじめる':'つぎへ'}</button>`:''}
+      <button class="btn" onclick="tutSkip()">スキップ</button>
+    </div>`;
+  tutApply();
+}
+function tutFinish(){ TUT=null; const b=document.getElementById('tutbubble'); if(b)b.remove(); tutApply(); }
+function tutApply(){
+  if(typeof document.querySelectorAll!=='function') return;
+  document.querySelectorAll('.tut-hi').forEach(e=>e.classList.remove('tut-hi'));
+  if(!TUT) return;
+  const st=TSTEPS[TUT.i];
+  if(st&&st.target){ const el=document.querySelector(st.target); if(el) el.classList.add('tut-hi'); }
+}
+
+/* ============================================================
+   起動
+   ============================================================ */
+$('endturn').onclick = endTurn;
+$('restart').onclick = ()=>{ if(confirm('はじめからやり直しますか？')){ closeModal(); showStart(); } };
+$('grow').onclick = grow;
+$('helpbtn').onclick = showHelp;
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+newGame();
+render();
+showStart();
+</script>
+</body>
+</html>
