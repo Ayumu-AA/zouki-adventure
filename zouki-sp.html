@@ -156,6 +156,10 @@ button{font-family:inherit; cursor:pointer; border:none; color:inherit; backgrou
   background:linear-gradient(160deg,#1c3a31,#132921); border:1px solid var(--energy); border-radius:13px;
   padding:10px 12px; font-size:12.5px; line-height:1.6; box-shadow:0 10px 30px #000c}
 #tutbub.attop{bottom:auto; top:64px}
+#tutbub.mini{left:8px; right:auto; bottom:158px; top:auto; padding:0; background:none; border:none; box-shadow:none}
+#tutbub.mini .minichip{min-height:44px; display:flex; align-items:center; gap:6px; padding:0 14px;
+  background:linear-gradient(160deg,#1c3a31,#132921); border:1px solid var(--energy); border-radius:99px;
+  font-size:12px; font-weight:700; box-shadow:0 6px 20px #000a}
 #tutbub .tstep{font-size:9px; color:var(--energy); letter-spacing:.08em; margin-bottom:2px}
 #tutbub .tacts{display:flex; gap:8px; margin-top:8px; justify-content:flex-end}
 #tutbub .tbtn2{min-height:40px; padding:0 16px; border-radius:10px; font-size:12px; font-weight:700;
@@ -833,17 +837,24 @@ function removeTutBub(){
   if(typeof document.querySelector!=='function') return;
   const b=document.getElementById('tutbub'); if(b) b.remove();
 }
-function tutNext(){ if(!TUT) return; TUT.i++; if(typeof document.querySelector==='function'){ render(); tutShow(); } }
+function tutNext(){ if(!TUT) return; TUT.i++; TUT.min=false; if(typeof document.querySelector==='function'){ render(); tutShow(); } }
+function tutMin(v){ if(!TUT) return; TUT.min=v; tutShow(); }
 function tutShow(){
   if(typeof document.createElement!=='function') return;
   if(!TUT||TUT.i>=TUTSTEPS.length){ removeTutBub(); return; }
   const st=TUTSTEPS[TUT.i];
   let b=document.getElementById('tutbub');
   if(!b){ b=document.createElement('div'); b.id='tutbub'; document.getElementById('app').appendChild(b); }
-  b.classList.toggle('attop', !!st.top);
+  if(TUT.min){
+    b.className='mini';
+    b.innerHTML=`<button class="minichip" onclick="tutMin(false)">📖 せつめい ${TUT.i+1}/${TUTSTEPS.length}</button>`;
+    return;
+  }
+  b.className = st.top ? 'attop' : '';
   b.innerHTML=`<div class="tstep">チュートリアル ${TUT.i+1} / ${TUTSTEPS.length}</div>
     <div>${st.t}</div>
     <div class="tacts">
+      <button class="tbtn2 sub" onclick="tutMin(true)" style="margin-right:auto">▼ 小さくする</button>
       ${st.btn?`<button class="tbtn2" onclick="tutNext()">つぎへ</button>`:''}
       <button class="tbtn2 sub" onclick="TUT=null;removeTutBub();guideApply();">スキップ</button>
     </div>`;
@@ -868,7 +879,7 @@ function tutEvent(kind,id){
     if(k!==kind) return;
     if(v==='food'){ if(!DB[id]||DB[id].cat!=='食事') return; }
     else if(v && v!==id) return;
-    TUT.i++;
+    TUT.i++; TUT.min=false;
     if(typeof document.querySelector==='function'){ tutShow(); guideApply(); }
     return;
   }
