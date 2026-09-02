@@ -152,6 +152,15 @@ button{font-family:inherit; cursor:pointer; border:none; color:inherit; backgrou
 .modetab{flex:1; min-height:44px; border-radius:11px; font-size:12.5px; font-weight:700;
   background:var(--panel2); border:1px solid var(--line); color:var(--tx2)}
 .modetab.on{background:#12312a; border-color:var(--energy); color:var(--tx)}
+#tutbub{position:absolute; left:8px; right:8px; bottom:158px; z-index:55;
+  background:linear-gradient(160deg,#1c3a31,#132921); border:1px solid var(--energy); border-radius:13px;
+  padding:10px 12px; font-size:12.5px; line-height:1.6; box-shadow:0 10px 30px #000c}
+#tutbub.attop{bottom:auto; top:64px}
+#tutbub .tstep{font-size:9px; color:var(--energy); letter-spacing:.08em; margin-bottom:2px}
+#tutbub .tacts{display:flex; gap:8px; margin-top:8px; justify-content:flex-end}
+#tutbub .tbtn2{min-height:40px; padding:0 16px; border-radius:10px; font-size:12px; font-weight:700;
+  background:linear-gradient(135deg,#3fc4a0,#2b9b7d); color:#06231c}
+#tutbub .tbtn2.sub{background:var(--panel2); color:var(--tx2); border:1px solid var(--line)}
 
 /* 防いだバナー */
 #banner{opacity:0; position:absolute; top:8px; left:50%; transform:translateX(-50%) translateY(-140%); z-index:70;
@@ -694,7 +703,7 @@ const SP_LEVELS={
     cfg:{ maxTurn:14, startEnergy:12, startGlucose:6, eventFrom:4, eventRate:0.45, hard:true, o2base:3, o2perRBC:3, comboBonus:true,
       startOrgans:['shinzou','hai','daeki','shouchou','cellG'] } },
 };
-let LEVEL=null, COND=null, GUIDE=null, MODE='score';
+let LEVEL=null, COND=null, GUIDE=null, MODE='score', TUT=null;
 function setMode(m){ MODE=m; }
 
 /* ---------- 今日のからだ ---------- */
@@ -720,6 +729,7 @@ const CONDS=[
 
 /* ---------- 開始 ---------- */
 function startGame(key, condId){
+  TUT=null; removeTutBub();
   LEVEL=SP_LEVELS[key];
   spClear(key);
   Object.assign(CFG,{ goalVP:9999, startHP:20, playLimit:2, buysPerTurn:2, vpCost:3 }, LEVEL.cfg);
@@ -785,7 +795,83 @@ const GSTEPS=[
  {t:'🛒で<b>「胃」</b>を買おう！ 肉・魚を吸収できると<b>🍱ボーナス★</b>がもらえる', sel:'#shopbtn', wait:['buy']},
  {t:'買った臓器はずっと体に残る。あとは自由に！', wait:['end'], last:true},
 ];
+const TUTSTEPS=[
+ {t:'ようこそ！キミはこの<b>体の司令塔</b>。臓器をタップして体を動かし、食べ物をエネルギーに変えて<b>🌱成長（スコア★）</b>するゲームだ。', btn:true},
+ {t:'<b>画面の見方</b>から。まん中が体の図。<b>こい色の臓器＝もっている</b>（タップで使える）、<b>うすい点線＝まだ持っていない</b>臓器（あとで買える）。', btn:true},
+ {t:'まわりの小さなパネルは物質の量。<b>右上＝消化管</b>（食べた物が入る。じつはここは<b>まだ「体の外」</b>！）、<b>左＝血液</b>（吸収された養分と酸素）、<b>左下＝不要物</b>。', sel:'#zone-gut', btn:true},
+ {t:'では操作。<b>❤️心臓</b>をタップ！ 心臓は血液を送り出すポンプ。すべての臓器は血液でつながっているから、<b>血流（左上の🩸）がないと体の中の臓器は働けない</b>。', sel:'#node-shinzou', wait:['organ','shinzou']},
+ {t:'血流+3！ 次は<b>🫁肺</b>をタップ。血流を1使って、肺胞で<b>酸素</b>をとりこむ。左の血液パネルの「酸素」がふえるのを見てて。', sel:'#node-hai', wait:['organ','hai']},
+ {t:'次は食事。下の<b>🍚ごはん</b>をタップ！ ごはんの主成分は<b>でんぷん（炭水化物）</b>。右上の消化管パネルに入る。', sel:'#handrow', wait:['life','food']},
+ {t:'<b>💧だ液せん</b>をタップ。だ液の消化酵素<b>アミラーゼ</b>が、でんぷんを<b>ばくが糖</b>に分解する。でもまだ吸収はできない。', sel:'#node-daeki', wait:['organ','daeki']},
+ {t:'<b>🧻小腸</b>をタップ。腸のかべの酵素<b>マルターゼ</b>がばくが糖を<b>ブドウ糖</b>にして、<b>柔毛</b>から血液へ吸収！ ここでやっと「体の中」に入った。', sel:'#node-shouchou', wait:['organ','shouchou']},
+ {t:'仕上げは<b>⚡細胞</b>（足のあたり）。ブドウ糖＋酸素から<b>エネルギー</b>をとり出す（<b>細胞による呼吸</b>）。かわりに二酸化炭素が出る。左下の不要物パネルに注目。', sel:'#node-cellG', wait:['organ','cellG'], top:true},
+ {t:'<b>🌱成長</b>をタップ！ エネルギー3→★1。この★がスコアだ。エネルギーは<b>臓器の買い物にも使う</b>から、成長と買い物の配分が腕の見せどころ。', sel:'#grow', wait:['grow']},
+ {t:'<b>ターン終了 ▶</b>を押そう。臓器は1ターンに1回ずつ。終了すると全部また使えるようになり、手札も引き直される。', sel:'#endturn', wait:['end']},
+ {t:'⚠️<b>不要物はためすぎ注意</b>。ターン終了時に <b>二酸化炭素4以上／尿素6以上／アンモニアは1でも</b>あると体力が減る。二酸化炭素は🫁肺がはき出してくれる。', btn:true},
+ {t:'2ターン目は買い物から。<b>🛒臓器を買う</b>を開こう。', sel:'#shopbtn', wait:['buy','open']},
+ {t:'エネルギーで<b>🫙胃</b>を買おう！ 買った臓器は<b>ずっと体に残り、毎ターン使える</b>。', sel:'#shoplist', wait:['buy','i']},
+ {t:'「とじる」でショップを閉じよう。', sel:'#sheetclose', wait:['sheetclose']},
+ {t:'2ターン目もまず<b>❤️心臓</b>から。「心臓→肺→食べる→消化→吸収→細胞→成長」——この流れがこのゲームの基本だ。', sel:'#node-shinzou', wait:['organ','shinzou']},
+ {t:'今度は<b>🍖肉・魚</b>を食べてみよう。肉は<b>タンパク質</b>。でんぷんとは分解の通り道がちがう。', sel:'#handrow', wait:['life','nikuzakana']},
+ {t:'さっき買った<b>🫙胃</b>をタップ！ 胃液の酵素<b>ペプシン</b>がタンパク質を「ペプトン」に分解する。強い酸性の胃液の中で働く酵素だ。', sel:'#node-i', wait:['organ','i']},
+ {t:'ペプトンの続きは<b>🥖すい臓（トリプシン）→🧻小腸（ペプチダーゼ）</b>でアミノ酸になる。ちがう栄養素を同時に吸収すると<b>🍱ボーナス★</b>！ 残りは自由にやってみよう。🫁肺→🧻小腸→⚡細胞→🌱成長を忘れずに。', btn:true, free:true},
+];
+function startTutorial(){
+  TUT=null; removeTutBub();
+  LEVEL=SP_LEVELS.easy; MODE='score'; GUIDE=null;
+  Object.assign(CFG,{ goalVP:9999, startHP:20, playLimit:2, buysPerTurn:2, vpCost:3 }, LEVEL.cfg);
+  CFG.maxTurn=3; CFG.eventFrom=99; CFG.eventRate=0; CFG.startEnergy=6;
+  COND=CONDS[0];
+  newGame();
+  /* 山札を固定：1ターン目にごはん、2ターン目に肉・魚が必ず来る */
+  G.deck=['gohan','shinkokyu','gohan','pan','pan','neru','gohan','nikuzakana','shinkokyu','pan','gohan','gohan'].reverse();
+  G.hand=[]; draw(CFG.handSize);
+  TUT={i:0};
+  render(); tutShow();
+}
+function removeTutBub(){
+  if(typeof document.querySelector!=='function') return;
+  const b=document.getElementById('tutbub'); if(b) b.remove();
+}
+function tutNext(){ if(!TUT) return; TUT.i++; if(typeof document.querySelector==='function'){ render(); tutShow(); } }
+function tutShow(){
+  if(typeof document.createElement!=='function') return;
+  if(!TUT||TUT.i>=TUTSTEPS.length){ removeTutBub(); return; }
+  const st=TUTSTEPS[TUT.i];
+  let b=document.getElementById('tutbub');
+  if(!b){ b=document.createElement('div'); b.id='tutbub'; document.getElementById('app').appendChild(b); }
+  b.classList.toggle('attop', !!st.top);
+  b.innerHTML=`<div class="tstep">チュートリアル ${TUT.i+1} / ${TUTSTEPS.length}</div>
+    <div>${st.t}</div>
+    <div class="tacts">
+      ${st.btn?`<button class="tbtn2" onclick="tutNext()">つぎへ</button>`:''}
+      <button class="tbtn2 sub" onclick="TUT=null;removeTutBub();guideApply();">スキップ</button>
+    </div>`;
+}
+function showTutEnd(){
+  TUT=null; removeTutBub();
+  ovl(`<div class="bigico">🎓</div><h2>チュートリアル完了！</h2>
+    <p class="c">★${G.vp} かせげた。本番の「かんたん」は<b>8ターン</b>。</p>
+    <div class="chainrow">🍱 2種類の栄養素を同時に吸収で★+1、3種類で★+3</div>
+    <div class="chainrow">🥖 すい臓・🟢たんのうを買うと、肉や脂肪も最後まで吸収できる</div>
+    <div class="chainrow">⚠️ こまったら右上の<b>？</b>でいつでもルールを見られる</div>
+    <button class="btn" onclick="closeOvl();startGame('easy')">かんたんをはじめる</button>
+    <button class="btn sub" onclick="closeOvl();showLevelSelect()">ホームへ</button>`);
+  vib([60,40,60,40,150]);
+}
+
 function tutEvent(kind,id){
+  if(TUT){
+    const st=TUTSTEPS[TUT.i];
+    if(!st||!st.wait) return;
+    const [k,v]=st.wait;
+    if(k!==kind) return;
+    if(v==='food'){ if(!DB[id]||DB[id].cat!=='食事') return; }
+    else if(v && v!==id) return;
+    TUT.i++;
+    if(typeof document.querySelector==='function'){ tutShow(); guideApply(); }
+    return;
+  }
   if(!GUIDE||!GUIDE.on) return;
   const st=GSTEPS[GUIDE.i];
   if(!st||!st.wait) return;
@@ -800,6 +886,12 @@ function tutEvent(kind,id){
 function guideApply(){
   if(typeof document.querySelectorAll!=='function') return;
   document.querySelectorAll('.guide').forEach(e=>e.classList.remove('guide'));
+  if(TUT){
+    const gb0=$id('guidebar'); if(gb0) gb0.innerHTML='';
+    const st=TUTSTEPS[TUT.i];
+    if(st&&st.sel){ const el=document.querySelector(st.sel); if(el) el.classList.add('guide'); }
+    return;
+  }
   const gb=$id('guidebar');
   if(!GUIDE||!GUIDE.on||G.over){ if(gb) gb.innerHTML=warnHint(); return; }
   const st=GSTEPS[GUIDE.i];
@@ -876,6 +968,7 @@ function ovl(html){ const b=$id('ovlbox'); if(!b) return; b.innerHTML=html; $id(
 function closeOvl(){ const o=$id('ovl'); if(o) o.classList.remove('on'); }
 
 function showLevelSelect(){
+  TUT=null; removeTutBub();
   const recOf=L=>{
     if(MODE==='clear'){
       const t=load('zouki_sp_clear_'+L.key);
@@ -893,7 +986,8 @@ function showLevelSelect(){
       <button class="lvbtn ${L.wip?'dis':''} ${L.key==='easy'?'main':''}" ${L.wip?'':`onclick="pickLevel('${L.key}')"`}>
         <span class="lvname">${L.name}</span>
         <span class="lvdesc">${L.turns}ターン・${L.time}${recOf(L)}<br>${L.desc}</span>
-      </button>`).join('')}`);
+      </button>`).join('')}
+    <button class="btn sub" style="margin-top:10px;font-size:12px" onclick="closeOvl();startTutorial()">🎓 はじめての人はチュートリアル（3ターン・約2分）</button>`);
 }
 function showCondCard(){
   ovl(`<p class="c" style="color:#9aa0b8;font-size:11px;letter-spacing:.1em">きょうのからだ</p>
@@ -903,7 +997,7 @@ function showCondCard(){
     <button class="btn" onclick="closeOvl()">スタート！</button>`);
   vib(80);
 }
-function showCard(id,ghost){
+function showCard(id,ghost,fromRules){
   const c=DB[id];
   const can = ghost && G && !G.over && G.energy>=c.cost && G.buys>0;
   ovl(`<div class="bigico">${c.ico}</div><h2>${c.name}</h2>
@@ -911,12 +1005,13 @@ function showCard(id,ghost){
     <p class="c">${c.text}</p>
     <div class="sci"><b>理科のポイント</b><br>${c.sci}</div>
     ${ghost?`<button class="btn ${can?'':'dis'}" onclick="closeOvl();buyById('${id}')">エネルギー${c.cost}で手に入れる</button>`:''}
-    <button class="btn sub" onclick="closeOvl()">とじる</button>`);
+    <button class="btn ${fromRules?'':'sub'}" onclick="${fromRules?'showRules()':'closeOvl()'}">${fromRules?'← ルールにもどる':'とじる'}</button>`);
 }
 function buyById(id){ buy(id, $id('node-'+id)); }
 
 function showResult(win,reason){
   closeSheet();
+  if(TUT) return showTutEnd();
   if(LEVEL) spClear(LEVEL.key);
   if(MODE==='clear') return showClearResult(win);
   const dead=G.hp<=0, raw=G.vp;
@@ -972,6 +1067,52 @@ function showClearResult(win){
   vib(cleared?[60,40,60,40,150]:[200,80,200]);
 }
 
+/* ---------- 勉強用：消化のくわしい解説 ---------- */
+function showStudy(){
+  ovl(`<h2>📖 三大栄養素の消化</h2>
+  <p class="c" style="color:#9aa0b8;font-size:11px">中2理科「動物の体のつくりとはたらき」対応</p>
+
+  <p><b>消化とは</b>：食べ物の大きな分子を、吸収できる小さな分子まで分解すること。消化酵素はそれぞれ<b>決まった相手にしか働かず</b>、体温くらいの温度でよく働く。</p>
+  <p><b>食べ物の通り道（消化管）</b>：口 → 食道 → 胃 → 小腸（入り口の十二指腸に<b>すい液と胆汁</b>が出る）→ 大腸 → こう門。この1本の管の中は<b>「体の外」</b>で、吸収されてはじめて体の中に入る。</p>
+
+  <div class="chainrow" style="border-color:#e2a03f66"><b style="color:#f2c27e">🍚 炭水化物（でんぷん）</b><br>
+  ① 口：だ液の<b>アミラーゼ</b> → ばくが糖（麦芽糖）<br>
+  ② 胃：でんぷんに働く酵素は<b>ない</b>（素通り）<br>
+  ③ 小腸へ：すい液の<b>アミラーゼ</b>も同じ働き<br>
+  ④ 腸のかべ：<b>マルターゼ</b> → <b>ブドウ糖</b><br>
+  吸収：柔毛の<b>毛細血管</b>へ入り、肝臓を通って全身へ<br>
+  <span style="color:#9aa0b8;font-size:10px">実験：でんぷんは<b>ヨウ素液</b>で青むらさき色、糖は<b>ベネジクト液</b>＋加熱で赤かっ色の沈でん</span></div>
+
+  <div class="chainrow" style="border-color:#e0556a66"><b style="color:#ff9fae">🍖 タンパク質</b><br>
+  ① 胃：<b>ペプシン</b>（強い酸性の胃液の中で働く）→ ペプトン<br>
+  ② すい液：<b>トリプシン</b> → ペプチド<br>
+  ③ 腸のかべ：<b>ペプチダーゼ</b> → <b>アミノ酸</b><br>
+  吸収：柔毛の<b>毛細血管</b>へ<br>
+  <span style="color:#9aa0b8;font-size:10px">✅ <b>3つの消化液（胃液・すい液・腸のかべの酵素）を通るのはタンパク質だけ</b>。テストで超頻出！</span></div>
+
+  <div class="chainrow" style="border-color:#3fc4a066"><b style="color:#7fe0c3">🍤 脂肪</b><br>
+  ① <b>胆汁</b>：肝臓でつくられ、たんのうにためられる。<b>消化酵素をふくまない</b>のに脂肪の消化を助ける（細かい粒にする＝乳化）<br>
+  ② すい液：<b>リパーゼ</b> → <b>脂肪酸＋モノグリセリド</b><br>
+  吸収：柔毛の中で脂肪にもどって<b>リンパ管</b>へ（毛細血管ではない！）</div>
+
+  <p style="margin-top:10px"><b>まとめ：どの消化液が何に働く？</b></p>
+  <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:10.5px;text-align:center">
+    <tr style="color:#9aa0b8"><td style="text-align:left;padding:3px">消化液</td><td>でんぷん</td><td>タンパク質</td><td>脂肪</td></tr>
+    <tr><td style="text-align:left;padding:3px">だ液</td><td>アミラーゼ</td><td>―</td><td>―</td></tr>
+    <tr><td style="text-align:left;padding:3px">胃液</td><td>―</td><td>ペプシン</td><td>―</td></tr>
+    <tr><td style="text-align:left;padding:3px">胆汁</td><td>―</td><td>―</td><td>乳化(酵素なし)</td></tr>
+    <tr><td style="text-align:left;padding:3px">すい液</td><td>アミラーゼ</td><td>トリプシン</td><td>リパーゼ</td></tr>
+    <tr><td style="text-align:left;padding:3px">腸のかべ</td><td>マルターゼ</td><td>ペプチダーゼ</td><td>―</td></tr>
+  </table></div>
+  <p style="color:#9aa0b8;font-size:10px;margin-top:2px">※すい液だけが三大栄養素すべてに働く「万能の消化液」</p>
+
+  <p style="margin-top:8px"><b>テストに出るポイント</b></p>
+  <p style="font-size:11px">・胆汁は消化酵素を<b>ふくまない</b>／・アミラーゼの仕事は<b>ばくが糖まで</b>（ブドウ糖にするのはマルターゼ）／・脂肪の吸収先だけ<b>リンパ管</b>／・消化管の中は<b>体の外</b>／・柔毛は<b>表面積</b>を大きくして吸収の効率を上げる</p>
+
+  <button class="btn" onclick="showRules()">← ルールにもどる</button>
+  <button class="btn sub" onclick="closeOvl()">ゲームにもどる</button>`);
+}
+
 /* ---------- メニュー（設定） ---------- */
 function showMenu(){
   if(!G) return;
@@ -989,7 +1130,7 @@ function showMenu(){
 
 /* ---------- ショップ（ボトムシート） ---------- */
 function openSheet(){ renderSheet(); $id('sheet').classList.add('on'); tutEvent('buy','open'); }
-function closeSheet(){ const s=$id('sheet'); if(s) s.classList.remove('on'); }
+function closeSheet(){ const s=$id('sheet'); if(s) s.classList.remove('on'); tutEvent('sheetclose'); }
 function renderSheet(){
   const card=id=>{
     const c=DB[id], can=G.energy>=c.cost&&G.buys>0;
@@ -1078,13 +1219,14 @@ function render(){
 
   PREV=JSON.parse(JSON.stringify({gut:G.gut,blood:G.blood,waste:G.waste,energy:G.energy,vp:G.vp,hp:G.hp,flow:G.flow}));
   guideApply();
-  spSave();
+  if(TUT) tutShow();
+  if(!TUT) spSave();
 }
 
 /* ---------- ルール説明 ---------- */
 function showRules(){
   const zukan = [...ORGAN_SHOP, ...LIFE_SHOP].map(id=>
-    `<button style="width:52px;min-height:48px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px 1px" onclick="showCard('${id}')">
+    `<button style="width:52px;min-height:48px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px 1px" onclick="showCard('${id}',false,true)">
       <span style="font-size:16px;display:block">${DB[id].ico}</span><span style="font-size:7.5px;color:var(--tx2)">${(SP_LAB[id]||DB[id].name.split('（')[0]).slice(0,5)}</span></button>`).join('');
   ovl(`<h2>ルール</h2>
     <p><b>目的：</b>${CFG.maxTurn}ターンで、食べ物をエネルギーに変えて「🌱成長」し、スコア★をかせぐ。体力0でゲームオーバー。</p>
@@ -1099,6 +1241,7 @@ function showRules(){
     <p><b>⚠️不要物：</b>二酸化炭素4以上・アンモニア1以上・尿素6以上で、ターン終了時に体力が減る。肺・肝臓・じん臓で処理しよう。</p>
     ${CFG.hard?`<p style="color:#ffb4b4"><b>🔴むずかしい追加ルール：</b>1ターンに細胞へ届けられる酸素は「${CFG.o2base}＋赤血球の数×${CFG.o2perRBC}」まで。かぜ・けがは体力-6（⚪白血球・🩹血小板が体にあれば無効）。</p>`:''}
     <p style="color:#9aa0b8;font-size:11px"><b>まちがえやすい：</b>消化管の中はまだ「体の外」。吸収されてはじめて体に入る。胆汁は消化酵素ではない。</p>
+    <button class="btn sub" style="font-size:12px" onclick="showStudy()">📖 くわしく見る：三大栄養素の消化（勉強用）</button>
     <p style="margin-top:8px"><b>ずかん</b>（タップで説明）</p>
     <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center">${zukan}</div>
     <button class="btn" onclick="closeOvl()">ゲームにもどる</button>`);
